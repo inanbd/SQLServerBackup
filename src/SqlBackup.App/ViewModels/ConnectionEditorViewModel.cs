@@ -13,6 +13,7 @@ public sealed class ConnectionEditorViewModel : ObservableObject
     private readonly ISecretProtector _protector;
     private string? _newPassword;
     private string _testResultText = "";
+    private string _provisionResultText = "";
 
     public ConnectionEditorViewModel(ConnectionProfile working, ISecretProtector protector, bool isNew)
     {
@@ -20,6 +21,7 @@ public sealed class ConnectionEditorViewModel : ObservableObject
         _protector = protector;
         IsNew = isNew;
         TestConnectionCommand = new AsyncRelayCommand(_ => TestConnectionAsync());
+        CreateBackupLoginCommand = new AsyncRelayCommand(_ => CreateBackupLoginAsync());
     }
 
     public ConnectionProfile Working { get; }
@@ -82,7 +84,14 @@ public sealed class ConnectionEditorViewModel : ObservableObject
         private set => Set(ref _testResultText, value);
     }
 
+    public string ProvisionResultText
+    {
+        get => _provisionResultText;
+        private set => Set(ref _provisionResultText, value);
+    }
+
     public ICommand TestConnectionCommand { get; }
+    public ICommand CreateBackupLoginCommand { get; }
 
     /// <summary>Called from the dialog's PasswordBox (PasswordBox does not support binding).</summary>
     public void SetPassword(string password) => _newPassword = password.Length == 0 ? null : password;
@@ -116,17 +125,62 @@ public sealed class ConnectionEditorViewModel : ObservableObject
         TestResultText = "Connecting…";
         try
         {
-            var probe = Cloner.DeepClone(Working);
-            if (IsSqlAuth && _newPassword is not null)
-                probe.ProtectedPassword = _protector.Protect(_newPassword);
-
-            var connectionString = SqlConnectionFactory.BuildConnectionString(probe, _protector);
-            var info = await SqlServerQueries.TestConnectionAsync(connectionString);
+            var info = await SqlServerQueries.TestConnectionAsync(BuildCurrentConnectionString());
             TestResultText = $"✓ Connected to {info.ServerName} — {info.Edition}, version {info.ProductVersion}";
         }
         catch (Exception ex)
         {
             TestResultText = "✗ " + ex.Message;
         }
+    }
+
+    /// <summary>
+    /// Provisions (or reuses + re-keys) the dedicated iSQLBackup_* SQL login using the
+    /// credentials currently entered above as the administrative connection, then switches
+    /// this profile to SQL authentication with the generated credential.
+    /// </summary>
+    private async Task CreateBackupLoginAsync()
+    {
+        if (string.IsNullOrWhiteSpace(Name))
+        {
+            ProvisionResultText = "✗ Enter the display name first — it forms the login name prefix.";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(Server))
+        {
+            ProvisionResultText = "✗ Enter the server address first.";
+            return;
+        }
+
+        ProvisionResultText = "Creating the backup login…";
+        try
+        {
+            var result = await BackupLoginProvisioner.ProvisionAsync(BuildCurrentConnectionString(), Name);
+
+            IsSqlAuth = true;
+            Username = result.Username;
+            SetPassword(result.Password);
+
+            var verb = result.ReusedExistingLogin
+                ? $"Reused existing login '{result.Username}' and reset its password"
+                : $"Created login '{result.Username}'";
+            ProvisionResultText =
+                $"✓ {verb}. Backup rights granted on {result.GrantedDatabases.Count} database(s); " +
+                "the generated password is stored encrypted when you click Save." +
+                (result.Warnings.Count > 0 ? "  Warnings: " + string.Join(" | ", result.Warnings) : "");
+        }
+        catch (Exception ex)
+        {
+            ProvisionResultText = "✗ " + ex.Message;
+        }
+    }
+
+    /// <summary>Connection string for the settings currently in the editor (including an unsaved password).</summary>
+    private string BuildCurrentConnectionString()
+    {
+        var probe = Cloner.DeepClone(Working);
+        if (IsSqlAuth && _newPassword is not null)
+            probe.ProtectedPassword = _protector.Protect(_newPassword);
+        return SqlConnectionFactory.BuildConnectionString(probe, _protector);
     }
 }

@@ -51,6 +51,13 @@ flowchart LR
 
 * Multiple SQL Server connections — Windows or SQL authentication, passwords
   stored with **Windows DPAPI** (never plaintext), TLS options, "Test connection".
+* **One-click dedicated backup login**: the connection editor can provision a
+  SQL login named `iSQLBackup_[Title5]_[5 digits]` with a strong random
+  password (generated, stored encrypted, never shown) and least-privilege
+  backup rights — `db_backupoperator` everywhere, msdb history read, and
+  `CREATE ANY DATABASE` for `RESTORE VERIFYONLY`. An existing `iSQLBackup_*`
+  login for the same connection is reused with its password reset, so
+  re-provisioning never litters the server.
 * Jobs: any number of databases per job; **Full / Differential / Transaction
   log** backups; per-job destination (local or UNC), optional subfolder per
   database; timestamped file names (`Db_Full_20260718_023000.bak`).
@@ -190,7 +197,10 @@ why the same job can succeed in the app and fail in the service. Fix one of:
    (`ALTER SERVER ROLE [sysadmin] ADD MEMBER [NT AUTHORITY\SYSTEM];` also works
    but hands the whole instance to every LocalSystem process.)
 3. Switch the connection profile to SQL authentication with a login that has
-   `db_backupoperator` in each database.
+   `db_backupoperator` in each database — easiest via **Connections → Edit →
+   "Create dedicated backup login"**, which provisions an `iSQLBackup_*` login
+   with the right permissions and stores its generated password automatically
+   (requires mixed-mode authentication on the server).
 
 The Dashboard shows which account the engine runs as ("running as …"), and
 permission failures in History carry this guidance inline.

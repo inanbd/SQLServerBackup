@@ -19,6 +19,7 @@
       <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
 
     <TextBlock Text="Display name" Style="{StaticResource FieldLabel}" />
@@ -63,7 +64,18 @@
     <TextBlock Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="2" Text="{Binding TestResultText}"
                TextWrapping="Wrap" Margin="0,8,0,0" />
 
-    <StackPanel Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal"
+    <GroupBox Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="2" Header="Dedicated backup login"
+              Margin="0,14,0,0" Padding="10">
+      <StackPanel>
+        <TextBlock TextWrapping="Wrap" Foreground="#FF57606A" FontSize="11"
+                   Text="Creates a SQL Server login used only by this tool (iSQLBackup_…) with a strong random password that is stored encrypted, and grants it backup rights on every database (db_backupoperator, msdb history read, CREATE ANY DATABASE for verification). Backups then no longer depend on the account the Windows service runs as. Uses the connection settings above as administrator — e.g. Windows authentication as yourself. Requires mixed-mode authentication on the server. If a matching iSQLBackup login already exists, it is reused and its password is reset. Re-run this after adding new databases to cover them." />
+        <Button Content="Create dedicated backup login" Command="{Binding CreateBackupLoginCommand}"
+                Padding="10,4" Margin="0,8,0,0" HorizontalAlignment="Left" />
+        <TextBlock Text="{Binding ProvisionResultText}" TextWrapping="Wrap" Margin="0,8,0,0" />
+      </StackPanel>
+    </GroupBox>
+
+    <StackPanel Grid.Row="9" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal"
                 HorizontalAlignment="Right" Margin="0,16,0,0">
       <Button Content="Save" Click="OnSave" Padding="16,6" Margin="0,0,8,0" IsDefault="True" />
       <Button Content="Cancel" IsCancel="True" Padding="16,6" />
