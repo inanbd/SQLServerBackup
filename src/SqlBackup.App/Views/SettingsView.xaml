@@ -1,0 +1,102 @@
+<UserControl x:Class="SqlBackup.App.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <DockPanel>
+      <TextBlock DockPanel.Dock="Top" Text="Settings" Style="{StaticResource SectionHeader}" />
+
+      <StackPanel>
+        <GroupBox Header="Windows service" Padding="12">
+          <StackPanel>
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Text="State:" FontWeight="SemiBold" Margin="0,0,8,0" />
+              <TextBlock Text="{Binding ServiceStateText}" />
+              <Button Content="↻" Command="{Binding RefreshServiceStateCommand}" Margin="10,0,0,0" Padding="6,0" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+              <Button Content="Install service" Command="{Binding ServiceCommands.InstallCommand}" Padding="12,5" Margin="0,0,8,0" />
+              <Button Content="Start" Command="{Binding ServiceCommands.StartCommand}" Padding="12,5" Margin="0,0,8,0" />
+              <Button Content="Stop" Command="{Binding ServiceCommands.StopCommand}" Padding="12,5" Margin="0,0,8,0" />
+              <Button Content="Uninstall" Command="{Binding ServiceCommands.UninstallCommand}" Padding="12,5" />
+            </StackPanel>
+            <TextBlock Margin="0,8,0,0" Foreground="Gray" FontSize="11" TextWrapping="Wrap"
+                       Text="Installing, starting and stopping the service shows a Windows administrator (UAC) prompt. The service runs as LocalSystem by default; assign a service account in services.msc if backups target network shares." />
+            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+              <TextBlock Text="Data folder:" FontWeight="SemiBold" Margin="0,0,8,0" />
+              <TextBlock Text="{Binding DataFolderText}" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+              <Button Content="Open data folder" Command="{Binding OpenDataFolderCommand}" Padding="12,5" Margin="0,0,8,0" />
+              <Button Content="Open logs" Command="{Binding OpenLogsFolderCommand}" Padding="12,5" />
+            </StackPanel>
+          </StackPanel>
+        </GroupBox>
+
+        <GroupBox Header="Email notifications" Padding="12" Margin="0,14,0,0">
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="130" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <CheckBox Grid.ColumnSpan="2" Content="Send email reports about backup runs"
+                      IsChecked="{Binding EmailEnabled}" Margin="0,0,0,6" />
+
+            <TextBlock Grid.Row="1" Text="SMTP server" Style="{StaticResource FieldLabel}" />
+            <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Margin="0,6,0,0">
+              <TextBox Width="260" Text="{Binding SmtpHost, UpdateSourceTrigger=PropertyChanged}" />
+              <TextBlock Text="Port" VerticalAlignment="Center" Margin="12,0,6,0" />
+              <TextBox Width="60" Text="{Binding SmtpPortText, UpdateSourceTrigger=PropertyChanged}" />
+              <CheckBox Content="TLS" IsChecked="{Binding UseTls}" VerticalAlignment="Center" Margin="12,0,0,0" />
+            </StackPanel>
+
+            <TextBlock Grid.Row="2" Text="Username" Style="{StaticResource FieldLabel}" />
+            <TextBox Grid.Row="2" Grid.Column="1" Width="260" HorizontalAlignment="Left" Margin="0,6,0,0"
+                     Text="{Binding SmtpUsername, UpdateSourceTrigger=PropertyChanged}" />
+
+            <TextBlock Grid.Row="3" Text="Password" Style="{StaticResource FieldLabel}" />
+            <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Margin="0,6,0,0">
+              <PasswordBox x:Name="SmtpPasswordInput" Width="260" PasswordChanged="OnSmtpPasswordChanged" />
+              <TextBlock Text="{Binding SmtpPasswordHint}" Foreground="Gray" FontSize="11"
+                         VerticalAlignment="Center" Margin="10,0,0,0" />
+            </StackPanel>
+
+            <TextBlock Grid.Row="4" Text="From address" Style="{StaticResource FieldLabel}" />
+            <TextBox Grid.Row="4" Grid.Column="1" Width="260" HorizontalAlignment="Left" Margin="0,6,0,0"
+                     Text="{Binding FromAddress, UpdateSourceTrigger=PropertyChanged}" />
+
+            <TextBlock Grid.Row="5" Text="To address(es)" Style="{StaticResource FieldLabel}" />
+            <StackPanel Grid.Row="5" Grid.Column="1" Margin="0,6,0,0">
+              <TextBox Text="{Binding ToAddresses, UpdateSourceTrigger=PropertyChanged}" />
+              <TextBlock Text="Separate multiple recipients with ; or ," Foreground="Gray" FontSize="11" Margin="0,2,0,0" />
+            </StackPanel>
+
+            <CheckBox Grid.Row="6" Grid.ColumnSpan="2" Content="Only email when a backup fails"
+                      IsChecked="{Binding OnlyOnFailure}" Margin="0,10,0,0" />
+
+            <StackPanel Grid.Row="7" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,12,0,0">
+              <Button Content="Save settings" Command="{Binding SaveCommand}" Padding="14,5" Margin="0,0,8,0" FontWeight="SemiBold" />
+              <Button Content="Send test email" Command="{Binding SendTestEmailCommand}" Padding="14,5" />
+            </StackPanel>
+
+            <StackPanel Grid.Row="8" Grid.ColumnSpan="2" Margin="0,8,0,0">
+              <TextBlock Text="{Binding SaveStatusText}" Foreground="#FF3AA655" />
+              <TextBlock Text="{Binding EmailTestResultText}" TextWrapping="Wrap" />
+            </StackPanel>
+          </Grid>
+        </GroupBox>
+      </StackPanel>
+    </DockPanel>
+  </ScrollViewer>
+</UserControl>

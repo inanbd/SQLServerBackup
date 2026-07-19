@@ -1,0 +1,72 @@
+<Window x:Class="SqlBackup.App.Views.ConnectionEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="SQL Server connection"
+        Width="520" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+  <Grid Margin="16">
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="Auto" SharedSizeGroup="Labels" />
+      <ColumnDefinition Width="*" />
+    </Grid.ColumnDefinitions>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+
+    <TextBlock Text="Display name" Style="{StaticResource FieldLabel}" />
+    <TextBox Grid.Column="1" Margin="0,6,0,0" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" />
+
+    <TextBlock Grid.Row="1" Text="Server" Style="{StaticResource FieldLabel}" />
+    <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,6,0,0">
+      <TextBox Text="{Binding Server, UpdateSourceTrigger=PropertyChanged}" />
+      <TextBlock Text="host  |  host\instance  |  host,port" Foreground="Gray" FontSize="11" Margin="0,2,0,0" />
+    </StackPanel>
+
+    <TextBlock Grid.Row="2" Text="Authentication" Style="{StaticResource FieldLabel}" />
+    <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="0,8,0,0">
+      <RadioButton Content="Windows" IsChecked="{Binding IsWindowsAuth}" Margin="0,0,16,0" />
+      <RadioButton Content="SQL Server login" IsChecked="{Binding IsSqlAuth}" />
+    </StackPanel>
+
+    <TextBlock Grid.Row="3" Text="Login" Style="{StaticResource FieldLabel}"
+               Visibility="{Binding IsSqlAuth, Converter={StaticResource BoolVis}}" />
+    <TextBox Grid.Row="3" Grid.Column="1" Margin="0,6,0,0"
+             Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"
+             Visibility="{Binding IsSqlAuth, Converter={StaticResource BoolVis}}" />
+
+    <TextBlock Grid.Row="4" Text="Password" Style="{StaticResource FieldLabel}"
+               Visibility="{Binding IsSqlAuth, Converter={StaticResource BoolVis}}" />
+    <StackPanel Grid.Row="4" Grid.Column="1" Margin="0,6,0,0"
+                Visibility="{Binding IsSqlAuth, Converter={StaticResource BoolVis}}">
+      <PasswordBox x:Name="PasswordInput" PasswordChanged="OnPasswordChanged" />
+      <TextBlock Text="{Binding PasswordHint}" Foreground="Gray" FontSize="11" Margin="0,2,0,0" />
+    </StackPanel>
+
+    <TextBlock Grid.Row="5" Text="Encryption" Style="{StaticResource FieldLabel}" />
+    <StackPanel Grid.Row="5" Grid.Column="1" Orientation="Horizontal" Margin="0,8,0,0">
+      <CheckBox Content="Encrypt connection" IsChecked="{Binding Encrypt}" Margin="0,0,16,0" />
+      <CheckBox Content="Trust server certificate" IsChecked="{Binding TrustServerCertificate}" />
+    </StackPanel>
+
+    <StackPanel Grid.Row="6" Grid.Column="1" Orientation="Horizontal" Margin="0,12,0,0">
+      <Button Content="Test connection" Command="{Binding TestConnectionCommand}" Padding="12,5" />
+    </StackPanel>
+
+    <TextBlock Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="2" Text="{Binding TestResultText}"
+               TextWrapping="Wrap" Margin="0,8,0,0" />
+
+    <StackPanel Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal"
+                HorizontalAlignment="Right" Margin="0,16,0,0">
+      <Button Content="Save" Click="OnSave" Padding="16,6" Margin="0,0,8,0" IsDefault="True" />
+      <Button Content="Cancel" IsCancel="True" Padding="16,6" />
+    </StackPanel>
+  </Grid>
+</Window>

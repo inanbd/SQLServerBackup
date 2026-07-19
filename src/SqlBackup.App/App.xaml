@@ -1,0 +1,39 @@
+<Application x:Class="SqlBackup.App.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:infra="clr-namespace:SqlBackup.App.Infrastructure"
+             xmlns:vm="clr-namespace:SqlBackup.App.ViewModels"
+             xmlns:views="clr-namespace:SqlBackup.App.Views"
+             ShutdownMode="OnExplicitShutdown">
+  <Application.Resources>
+    <infra:EqualityToVisibilityConverter x:Key="EqVis" />
+    <infra:InverseBoolConverter x:Key="InvBool" />
+    <BooleanToVisibilityConverter x:Key="BoolVis" />
+
+    <DataTemplate DataType="{x:Type vm:DashboardViewModel}">
+      <views:DashboardView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:ConnectionsViewModel}">
+      <views:ConnectionsView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:JobsViewModel}">
+      <views:JobsView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:HistoryViewModel}">
+      <views:HistoryView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
+      <views:SettingsView />
+    </DataTemplate>
+
+    <Style x:Key="SectionHeader" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="20" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Margin" Value="0,0,0,12" />
+    </Style>
+    <Style x:Key="FieldLabel" TargetType="TextBlock">
+      <Setter Property="Margin" Value="0,8,8,2" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+  </Application.Resources>
+</Application>

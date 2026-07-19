@@ -1,0 +1,50 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{D29B0FC6-4135-4D2F-9B7A-051FECC7A955}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlBackup.Core", "src\SqlBackup.Core\SqlBackup.Core.csproj", "{CCA97B06-B0D5-4A32-BDA8-A733D7468478}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlBackup.Service", "src\SqlBackup.Service\SqlBackup.Service.csproj", "{714139E2-D860-43FF-80BA-94A6639EDC62}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{1186FB8A-F803-4C13-BB58-A7A5443022C8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlBackup.Core.Tests", "tests\SqlBackup.Core.Tests\SqlBackup.Core.Tests.csproj", "{1996A1FC-30DA-4982-8DFF-75367DD88505}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlBackup.App", "src\SqlBackup.App\SqlBackup.App.csproj", "{94130A05-7306-4667-B5B9-9945F6A87414}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{CCA97B06-B0D5-4A32-BDA8-A733D7468478}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CCA97B06-B0D5-4A32-BDA8-A733D7468478}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CCA97B06-B0D5-4A32-BDA8-A733D7468478}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CCA97B06-B0D5-4A32-BDA8-A733D7468478}.Release|Any CPU.Build.0 = Release|Any CPU
+		{714139E2-D860-43FF-80BA-94A6639EDC62}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{714139E2-D860-43FF-80BA-94A6639EDC62}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{714139E2-D860-43FF-80BA-94A6639EDC62}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{714139E2-D860-43FF-80BA-94A6639EDC62}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1996A1FC-30DA-4982-8DFF-75367DD88505}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1996A1FC-30DA-4982-8DFF-75367DD88505}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1996A1FC-30DA-4982-8DFF-75367DD88505}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1996A1FC-30DA-4982-8DFF-75367DD88505}.Release|Any CPU.Build.0 = Release|Any CPU
+		{94130A05-7306-4667-B5B9-9945F6A87414}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{94130A05-7306-4667-B5B9-9945F6A87414}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{94130A05-7306-4667-B5B9-9945F6A87414}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{94130A05-7306-4667-B5B9-9945F6A87414}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{CCA97B06-B0D5-4A32-BDA8-A733D7468478} = {D29B0FC6-4135-4D2F-9B7A-051FECC7A955}
+		{714139E2-D860-43FF-80BA-94A6639EDC62} = {D29B0FC6-4135-4D2F-9B7A-051FECC7A955}
+		{1996A1FC-30DA-4982-8DFF-75367DD88505} = {1186FB8A-F803-4C13-BB58-A7A5443022C8}
+		{94130A05-7306-4667-B5B9-9945F6A87414} = {D29B0FC6-4135-4D2F-9B7A-051FECC7A955}
+	EndGlobalSection
+EndGlobal

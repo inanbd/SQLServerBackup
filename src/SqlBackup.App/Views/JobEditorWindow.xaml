@@ -1,0 +1,182 @@
+<Window x:Class="SqlBackup.App.Views.JobEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Backup job"
+        Width="680" Height="760" MinWidth="600" MinHeight="500"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+  <DockPanel Margin="16">
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+      <Button Content="Save" Click="OnSave" Padding="16,6" Margin="0,0,8,0" IsDefault="True" />
+      <Button Content="Cancel" IsCancel="True" Padding="16,6" />
+    </StackPanel>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+      <StackPanel>
+
+        <GroupBox Header="General" Padding="10">
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="110" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <TextBlock Text="Job name" Style="{StaticResource FieldLabel}" />
+            <DockPanel Grid.Column="1" Margin="0,6,0,0">
+              <CheckBox DockPanel.Dock="Right" Content="Enabled" IsChecked="{Binding Enabled}"
+                        VerticalAlignment="Center" Margin="12,0,0,0" />
+              <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" />
+            </DockPanel>
+
+            <TextBlock Grid.Row="1" Text="Connection" Style="{StaticResource FieldLabel}" />
+            <ComboBox Grid.Row="1" Grid.Column="1" Margin="0,6,0,0"
+                      ItemsSource="{Binding Connections}" SelectedItem="{Binding SelectedConnection}"
+                      DisplayMemberPath="Name" />
+
+            <TextBlock Grid.Row="2" Text="Backup type" Style="{StaticResource FieldLabel}" />
+            <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="0,6,0,0">
+              <ComboBox Width="180" ItemsSource="{Binding BackupTypes}" SelectedItem="{Binding Type}" />
+              <TextBlock Text="Differential/Log need an existing full backup." Foreground="Gray"
+                         FontSize="11" VerticalAlignment="Center" Margin="10,0,0,0" />
+            </StackPanel>
+          </Grid>
+        </GroupBox>
+
+        <GroupBox Header="Databases" Padding="10" Margin="0,10,0,0">
+          <StackPanel>
+            <StackPanel Orientation="Horizontal">
+              <Button Content="Load databases from server" Command="{Binding LoadDatabasesCommand}" Padding="10,4" />
+              <TextBlock Text="{Binding DatabasesStatusText}" VerticalAlignment="Center" Margin="10,0,0,0"
+                         Foreground="#FF57606A" />
+            </StackPanel>
+            <ListBox ItemsSource="{Binding DatabaseItems}" Height="140" Margin="0,8,0,0">
+              <ListBox.ItemTemplate>
+                <DataTemplate>
+                  <StackPanel Orientation="Horizontal">
+                    <CheckBox IsChecked="{Binding IsSelected}" Content="{Binding Name}" />
+                    <TextBlock Text="{Binding Note}" Foreground="OrangeRed" Margin="8,0,0,0" FontSize="11"
+                               VerticalAlignment="Center" />
+                  </StackPanel>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+              <TextBox Width="240" Text="{Binding NewDatabaseName, UpdateSourceTrigger=PropertyChanged}" />
+              <Button Content="Add database by name" Command="{Binding AddDatabaseCommand}" Padding="10,4" Margin="8,0,0,0" />
+            </StackPanel>
+          </StackPanel>
+        </GroupBox>
+
+        <GroupBox Header="Schedule" Padding="10" Margin="0,10,0,0">
+          <StackPanel>
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Text="Kind" VerticalAlignment="Center" Margin="0,0,8,0" />
+              <ComboBox Width="140" ItemsSource="{Binding ScheduleKinds}" SelectedItem="{Binding ScheduleKind}" />
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
+                        Visibility="{Binding ScheduleKind, Converter={StaticResource EqVis}, ConverterParameter=Interval}">
+              <TextBlock Text="Every" VerticalAlignment="Center" />
+              <TextBox Width="60" Margin="8,0" Text="{Binding IntervalMinutesText, UpdateSourceTrigger=PropertyChanged}" />
+              <TextBlock Text="minutes" VerticalAlignment="Center" />
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
+                        Visibility="{Binding ScheduleKind, Converter={StaticResource EqVis}, ConverterParameter=Daily}">
+              <TextBlock Text="At" VerticalAlignment="Center" />
+              <TextBox Width="60" Margin="8,0" Text="{Binding TimeOfDayText, UpdateSourceTrigger=PropertyChanged}" />
+              <TextBlock Text="(24h, e.g. 02:30)" Foreground="Gray" FontSize="11" VerticalAlignment="Center" />
+            </StackPanel>
+
+            <StackPanel Margin="0,8,0,0"
+                        Visibility="{Binding ScheduleKind, Converter={StaticResource EqVis}, ConverterParameter=Weekly}">
+              <ItemsControl ItemsSource="{Binding Days}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <StackPanel Orientation="Horizontal" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <CheckBox Content="{Binding Label}" IsChecked="{Binding IsSelected}" Margin="0,0,10,0" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                <TextBlock Text="At" VerticalAlignment="Center" />
+                <TextBox Width="60" Margin="8,0" Text="{Binding TimeOfDayText, UpdateSourceTrigger=PropertyChanged}" />
+              </StackPanel>
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
+                        Visibility="{Binding ScheduleKind, Converter={StaticResource EqVis}, ConverterParameter=Cron}">
+              <TextBlock Text="Cron" VerticalAlignment="Center" />
+              <TextBox Width="220" Margin="8,0" Text="{Binding CronExpression, UpdateSourceTrigger=PropertyChanged}" />
+              <TextBlock Text="minute hour day month weekday" Foreground="Gray" FontSize="11" VerticalAlignment="Center" />
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+              <Button Content="Preview schedule" Command="{Binding PreviewScheduleCommand}" Padding="10,4" />
+              <TextBlock Text="{Binding SchedulePreviewText}" VerticalAlignment="Center" Margin="10,0,0,0"
+                         TextWrapping="Wrap" />
+            </StackPanel>
+
+            <CheckBox Content="If the service was off when a run was due, catch up once at startup"
+                      IsChecked="{Binding CatchUpMissedRun}" Margin="0,10,0,0" />
+          </StackPanel>
+        </GroupBox>
+
+        <GroupBox Header="Destination" Padding="10" Margin="0,10,0,0">
+          <StackPanel>
+            <DockPanel>
+              <Button DockPanel.Dock="Right" Content="Browse…" Click="OnBrowseFolder" Padding="10,4" Margin="8,0,0,0" />
+              <TextBox Text="{Binding DestinationFolder, UpdateSourceTrigger=PropertyChanged}" />
+            </DockPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+              <Button Content="Validate destination" Command="{Binding ValidateDestinationCommand}" Padding="10,4" />
+              <CheckBox Content="Subfolder per database" IsChecked="{Binding SubfolderPerDatabase}"
+                        VerticalAlignment="Center" Margin="16,0,0,0" />
+            </StackPanel>
+            <TextBlock Text="{Binding DestinationStatusText}" TextWrapping="Wrap" Margin="0,6,0,0" />
+            <TextBlock Foreground="Gray" FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
+                       Text="The path is written by the SQL Server engine on the SQL Server host. For a remote server use a UNC share both accounts can reach." />
+          </StackPanel>
+        </GroupBox>
+
+        <GroupBox Header="Retention" Padding="10" Margin="0,10,0,0">
+          <StackPanel Orientation="Horizontal">
+            <ComboBox Width="140" ItemsSource="{Binding RetentionModes}" SelectedItem="{Binding RetentionMode}" />
+            <StackPanel Orientation="Horizontal" Margin="16,0,0,0"
+                        Visibility="{Binding RetentionMode, Converter={StaticResource EqVis}, ConverterParameter=KeepLastN}">
+              <TextBlock Text="Keep last" VerticalAlignment="Center" />
+              <TextBox Width="50" Margin="8,0" Text="{Binding KeepLastText, UpdateSourceTrigger=PropertyChanged}" />
+              <TextBlock Text="backups per database" VerticalAlignment="Center" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="16,0,0,0"
+                        Visibility="{Binding RetentionMode, Converter={StaticResource EqVis}, ConverterParameter=MaxAgeDays}">
+              <TextBlock Text="Delete backups older than" VerticalAlignment="Center" />
+              <TextBox Width="50" Margin="8,0" Text="{Binding MaxAgeDaysText, UpdateSourceTrigger=PropertyChanged}" />
+              <TextBlock Text="days" VerticalAlignment="Center" />
+            </StackPanel>
+          </StackPanel>
+        </GroupBox>
+
+        <GroupBox Header="Options" Padding="10" Margin="0,10,0,0">
+          <StackPanel>
+            <CheckBox Content="Verify backup after completion (RESTORE VERIFYONLY)" IsChecked="{Binding OptionVerify}" />
+            <CheckBox Content="Page checksums (WITH CHECKSUM)" IsChecked="{Binding OptionChecksum}" Margin="0,6,0,0" />
+            <CheckBox Content="Native backup compression (not on Express edition)" IsChecked="{Binding OptionCompression}" Margin="0,6,0,0" />
+            <CheckBox Content="Copy-only (does not affect the backup chain)" IsChecked="{Binding OptionCopyOnly}" Margin="0,6,0,0" />
+            <CheckBox Content="Take a full backup automatically when differential/log has no base"
+                      IsChecked="{Binding OptionFallbackToFull}" Margin="0,6,0,0" />
+          </StackPanel>
+        </GroupBox>
+
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
+</Window>
