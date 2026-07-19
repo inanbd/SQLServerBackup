@@ -171,6 +171,30 @@ The service also runs fine as a console app (`dotnet run` /
   panel works unelevated. Lock it down to a dedicated group if config changes
   must be admin-only.
 
+## Troubleshooting
+
+**"The server principal `NT AUTHORITY\SYSTEM` is not able to access the database
+`X` under the current security context"** (or `BACKUP DATABASE permission
+denied` / `Login failed`) — the job used **Windows authentication inside the
+service**, so it authenticated as the **service account** (LocalSystem by
+default), not as you. Standalone runs from the app use *your* account, which is
+why the same job can succeed in the app and fail in the service. Fix one of:
+
+1. Run the service as an account with access: `services.msc` →
+   *SQL Server Backup Service* → *Log On* → "This account", then restart it.
+2. Grant the service account backup rights (least privilege), per database:
+   ```sql
+   CREATE USER [NT AUTHORITY\SYSTEM] FOR LOGIN [NT AUTHORITY\SYSTEM];
+   ALTER ROLE [db_backupoperator] ADD MEMBER [NT AUTHORITY\SYSTEM];
+   ```
+   (`ALTER SERVER ROLE [sysadmin] ADD MEMBER [NT AUTHORITY\SYSTEM];` also works
+   but hands the whole instance to every LocalSystem process.)
+3. Switch the connection profile to SQL authentication with a login that has
+   `db_backupoperator` in each database.
+
+The Dashboard shows which account the engine runs as ("running as …"), and
+permission failures in History carry this guidance inline.
+
 ## Roadmap (not in v1, by design)
 
 Cloud destinations (Azure Blob/S3/SFTP) after local backup, restore workflow UI

@@ -128,6 +128,7 @@ public sealed class ServiceState
             {
                 ServiceVersion = typeof(ServiceState).Assembly.GetName().Version?.ToString(3) ?? "0.0.0",
                 ProcessId = Environment.ProcessId,
+                ServiceAccount = Core.Backup.SqlErrorHints.CurrentProcessAccount,
                 StartedUtc = StartedUtc,
                 ConfigModifiedUtc = _config.ModifiedUtc,
                 ConfigError = ConfigError,

@@ -76,6 +76,7 @@ public sealed class ServiceEndToEndTests : IAsyncLifetime
 
         // Status: our job is known, scheduled, not running.
         var status = await client.GetStatusAsync();
+        Assert.False(string.IsNullOrEmpty(status.ServiceAccount));
         var jobStatus = Assert.Single(status.Jobs);
         Assert.Equal(_job.Id, jobStatus.JobId);
         Assert.Equal("nightly", jobStatus.Name);

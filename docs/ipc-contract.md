@@ -42,6 +42,7 @@ connection is never just dropped.
 {
   "serviceVersion": "1.0.0",
   "processId": 1234,
+  "serviceAccount": "NT AUTHORITY\\SYSTEM",
   "startedUtc": "2026-07-18T20:00:00+00:00",
   "configModifiedUtc": "2026-07-18T19:55:12+00:00",
   "configError": null,

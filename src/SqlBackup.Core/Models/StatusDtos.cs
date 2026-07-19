@@ -20,6 +20,9 @@ public sealed class ServiceStatusInfo
 {
     public string ServiceVersion { get; set; } = "";
     public int ProcessId { get; set; }
+    /// <summary>Windows identity the service runs as (e.g. "NT AUTHORITY\SYSTEM") — the
+    /// account Windows-authenticated backups hit SQL Server with.</summary>
+    public string ServiceAccount { get; set; } = "";
     public DateTimeOffset StartedUtc { get; set; }
     public DateTimeOffset ConfigModifiedUtc { get; set; }
     /// <summary>Set when the last attempt to load config.json failed; the service keeps the previous config.</summary>

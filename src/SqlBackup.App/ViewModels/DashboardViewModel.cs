@@ -106,6 +106,7 @@ public sealed class DashboardViewModel : ObservableObject, IActivatable
             {
                 var uptime = DateTimeOffset.UtcNow - status.StartedUtc;
                 ServiceDetailText = $"v{status.ServiceVersion}, pid {status.ProcessId}, up {FormatUptime(uptime)}"
+                    + (status.ServiceAccount.Length > 0 ? $", running as {status.ServiceAccount}" : "")
                     + (status.ConfigError is { } err ? $" — CONFIG ERROR: {err}" : "");
                 UpdateRows(status);
                 DetectNewFailures(status);

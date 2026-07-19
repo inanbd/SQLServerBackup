@@ -77,11 +77,12 @@ public sealed class JobRunner
             return result;
         }
 
-        var (reachable, connectError) = await TryConnectWithRetryAsync(connectionString, ctx.Settings, ct);
+        var (reachable, connectError) = await TryConnectWithRetryAsync(
+            connectionString, ctx.Settings, ctx.Connection.AuthMode, ct);
         if (!reachable)
         {
             foreach (var db in job.Databases)
-                RecordFailure(result, ctx, db, $"SQL Server unreachable: {connectError}");
+                RecordFailure(result, ctx, db, connectError ?? "SQL Server unreachable.");
             await NotifyAsync(ctx, result);
             return result;
         }
@@ -215,7 +216,7 @@ public sealed class JobRunner
         catch (SqlException ex)
         {
             entry.Success = false;
-            entry.Error = string.Join(" | ", ex.Errors.Cast<SqlError>().Select(e => e.Message).Distinct());
+            entry.Error = BuildSqlErrorText(ex, ctx.Connection.AuthMode);
             _log.LogError(ex, "Backup of [{Database}] failed", database);
         }
         catch (Exception ex)
@@ -236,7 +237,7 @@ public sealed class JobRunner
     }
 
     private async Task<(bool Ok, string? Error)> TryConnectWithRetryAsync(
-        string connectionString, ServiceSettings settings, CancellationToken ct)
+        string connectionString, ServiceSettings settings, SqlAuthMode authMode, CancellationToken ct)
     {
         var attempts = Math.Max(0, settings.SqlConnectRetries) + 1;
         string? lastError = null;
@@ -249,6 +250,12 @@ public sealed class JobRunner
                 await using var conn = new SqlConnection(connectionString);
                 await conn.OpenAsync(ct);
                 return (true, null);
+            }
+            catch (SqlException ex) when (SqlErrorHints.IsLoginFailure(ex.Errors.Cast<SqlError>().Select(e => e.Number)))
+            {
+                // Authentication failures won't heal with retries — fail immediately with guidance.
+                _log.LogError(ex, "SQL Server sign-in failed");
+                return (false, $"Could not sign in to SQL Server: {BuildSqlErrorText(ex, authMode)}");
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -264,7 +271,17 @@ public sealed class JobRunner
             }
         }
 
-        return (false, lastError);
+        return (false, $"SQL Server unreachable after {attempts} attempt(s): {lastError}");
+    }
+
+    /// <summary>Joins the distinct SQL error messages and appends identity/permission guidance when relevant.</summary>
+    internal static string BuildSqlErrorText(SqlException ex, SqlAuthMode authMode)
+    {
+        var errors = ex.Errors.Cast<SqlError>().ToList();
+        var text = string.Join(" | ", errors.Select(e => e.Message).Distinct());
+        var hint = SqlErrorHints.ForBackupFailure(
+            errors.Select(e => e.Number).ToArray(), authMode, SqlErrorHints.CurrentProcessAccount);
+        return hint is null ? text : $"{text} — {hint}";
     }
 
     private void RecordFailure(JobRunResult result, JobRunContext ctx, string database, string error)
