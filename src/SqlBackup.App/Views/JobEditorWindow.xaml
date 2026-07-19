@@ -49,6 +49,13 @@
         <GroupBox Header="Databases" Padding="10" Margin="0,10,0,0">
           <StackPanel>
             <StackPanel Orientation="Horizontal">
+              <TextBlock Text="Selection" VerticalAlignment="Center" Margin="0,0,8,0" />
+              <ComboBox Width="180" ItemsSource="{Binding SelectionModes}" SelectedItem="{Binding SelectionMode}" />
+              <TextBlock Text="Discovery modes automatically cover databases created later."
+                         Foreground="Gray" FontSize="11" VerticalAlignment="Center" Margin="10,0,0,0" />
+            </StackPanel>
+            <TextBlock Text="{Binding DatabaseListCaption}" FontWeight="SemiBold" Margin="0,8,0,0" />
+            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
               <Button Content="Load databases from server" Command="{Binding LoadDatabasesCommand}" Padding="10,4" />
               <TextBlock Text="{Binding DatabasesStatusText}" VerticalAlignment="Center" Margin="10,0,0,0"
                          Foreground="#FF57606A" />
@@ -162,6 +169,41 @@
               <TextBox Width="50" Margin="8,0" Text="{Binding MaxAgeDaysText, UpdateSourceTrigger=PropertyChanged}" />
               <TextBlock Text="days" VerticalAlignment="Center" />
             </StackPanel>
+          </StackPanel>
+        </GroupBox>
+
+        <GroupBox Header="Off-site copy" Padding="10" Margin="0,10,0,0">
+          <StackPanel>
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Text="Destination" VerticalAlignment="Center" Margin="0,0,8,0" />
+              <ComboBox Width="260" ItemsSource="{Binding OffsiteChoices}" SelectedItem="{Binding SelectedOffsite}" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
+                        Visibility="{Binding HasOffsite, Converter={StaticResource BoolVis}}">
+              <TextBlock Text="Off-site retention" VerticalAlignment="Center" Margin="0,0,8,0" />
+              <ComboBox Width="140" ItemsSource="{Binding RetentionModes}" SelectedItem="{Binding OffsiteRetentionMode}" />
+              <StackPanel Orientation="Horizontal" Margin="12,0,0,0"
+                          Visibility="{Binding OffsiteRetentionMode, Converter={StaticResource EqVis}, ConverterParameter=KeepLastN}">
+                <TextBlock Text="Keep last" VerticalAlignment="Center" />
+                <TextBox Width="50" Margin="8,0" Text="{Binding OffsiteKeepLastText, UpdateSourceTrigger=PropertyChanged}" />
+              </StackPanel>
+              <StackPanel Orientation="Horizontal" Margin="12,0,0,0"
+                          Visibility="{Binding OffsiteRetentionMode, Converter={StaticResource EqVis}, ConverterParameter=MaxAgeDays}">
+                <TextBlock Text="Older than" VerticalAlignment="Center" />
+                <TextBox Width="50" Margin="8,0" Text="{Binding OffsiteMaxAgeDaysText, UpdateSourceTrigger=PropertyChanged}" />
+                <TextBlock Text="days" VerticalAlignment="Center" />
+              </StackPanel>
+            </StackPanel>
+            <TextBlock Foreground="Gray" FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
+                       Text="After a successful local backup the file is uploaded (with retries). An upload failure marks the run 'off-site failed' and triggers alerts, but the local backup still counts. Manage destinations on the Off-site page." />
+          </StackPanel>
+        </GroupBox>
+
+        <GroupBox Header="Monitoring" Padding="10" Margin="0,10,0,0">
+          <StackPanel Orientation="Horizontal">
+            <TextBlock Text="Alert when there is no successful backup for" VerticalAlignment="Center" />
+            <TextBox Width="50" Margin="8,0" Text="{Binding RpoHoursText, UpdateSourceTrigger=PropertyChanged}" />
+            <TextBlock Text="hours (0 = off). Fires even when the job never runs at all." VerticalAlignment="Center" />
           </StackPanel>
         </GroupBox>
 

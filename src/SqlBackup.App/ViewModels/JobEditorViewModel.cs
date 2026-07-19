@@ -40,31 +40,55 @@ public sealed class DayChoice : ObservableObject
     }
 }
 
+public sealed record OffsiteChoice(Guid? Id, string Name)
+{
+    public override string ToString() => Name;
+}
+
 public sealed class JobEditorViewModel : ObservableObject
 {
     private readonly AppServices _services;
     private ConnectionProfile? _selectedConnection;
     private ScheduleKind _scheduleKind;
+    private DatabaseSelectionMode _selectionMode;
+    private OffsiteChoice _selectedOffsite;
     private string _databasesStatusText = "Click 'Load databases' to list what's on the server.";
     private string _schedulePreviewText = "";
     private string _destinationStatusText = "";
     private string _newDatabaseName = "";
 
-    public JobEditorViewModel(BackupJob working, IReadOnlyList<ConnectionProfile> connections, AppServices services)
+    public JobEditorViewModel(
+        BackupJob working,
+        IReadOnlyList<ConnectionProfile> connections,
+        IReadOnlyList<OffsiteDestination> offsiteDestinations,
+        AppServices services)
     {
         Working = working;
         _services = services;
         Connections = connections;
         _selectedConnection = connections.FirstOrDefault(c => c.Id == working.ConnectionId) ?? connections.FirstOrDefault();
         _scheduleKind = working.Schedule.Kind;
+        _selectionMode = working.SelectionMode;
 
         IntervalMinutesText = working.Schedule.IntervalMinutes.ToString(CultureInfo.InvariantCulture);
         TimeOfDayText = working.Schedule.TimeOfDay.ToString("HH':'mm");
         CronExpression = working.Schedule.CronExpression;
         KeepLastText = working.Retention.KeepLast.ToString(CultureInfo.InvariantCulture);
         MaxAgeDaysText = working.Retention.MaxAgeDays.ToString(CultureInfo.InvariantCulture);
+        RpoHoursText = working.RpoHours.ToString(CultureInfo.InvariantCulture);
+        OffsiteKeepLastText = working.OffsiteRetention.KeepLast.ToString(CultureInfo.InvariantCulture);
+        OffsiteMaxAgeDaysText = working.OffsiteRetention.MaxAgeDays.ToString(CultureInfo.InvariantCulture);
 
-        foreach (var database in working.Databases)
+        OffsiteChoices = new List<OffsiteChoice> { new(null, "(no off-site copy)") };
+        foreach (var destination in offsiteDestinations)
+            OffsiteChoices.Add(new OffsiteChoice(destination.Id, $"{destination.Name} ({destination.Kind})"));
+        _selectedOffsite = OffsiteChoices.FirstOrDefault(c => c.Id == working.OffsiteDestinationId) ?? OffsiteChoices[0];
+
+        // Checked items mean "back up" in Explicit mode and "exclude" in discovery modes.
+        var initialChecked = working.SelectionMode == DatabaseSelectionMode.Explicit
+            ? working.Databases
+            : working.ExcludedDatabases;
+        foreach (var database in initialChecked)
             DatabaseItems.Add(new SelectableName { Name = database, IsSelected = true });
 
         Days = new ObservableCollection<DayChoice>(
@@ -88,6 +112,8 @@ public sealed class JobEditorViewModel : ObservableObject
     public IReadOnlyList<BackupType> BackupTypes { get; } = Enum.GetValues<BackupType>();
     public IReadOnlyList<ScheduleKind> ScheduleKinds { get; } = Enum.GetValues<ScheduleKind>();
     public IReadOnlyList<RetentionMode> RetentionModes { get; } = Enum.GetValues<RetentionMode>();
+    public IReadOnlyList<DatabaseSelectionMode> SelectionModes { get; } = Enum.GetValues<DatabaseSelectionMode>();
+    public List<OffsiteChoice> OffsiteChoices { get; }
 
     public ICommand LoadDatabasesCommand { get; }
     public ICommand AddDatabaseCommand { get; }
@@ -121,6 +147,47 @@ public sealed class JobEditorViewModel : ObservableObject
         get => Working.Type;
         set { Working.Type = value; OnPropertyChanged(); }
     }
+
+    public DatabaseSelectionMode SelectionMode
+    {
+        get => _selectionMode;
+        set
+        {
+            if (Set(ref _selectionMode, value))
+            {
+                OnPropertyChanged(nameof(DatabaseListCaption));
+                OnPropertyChanged(nameof(IsExplicitSelection));
+            }
+        }
+    }
+
+    public bool IsExplicitSelection => SelectionMode == DatabaseSelectionMode.Explicit;
+
+    public string DatabaseListCaption => IsExplicitSelection
+        ? "Tick the databases to back up:"
+        : "Databases are discovered at run time — tick any to EXCLUDE:";
+
+    public OffsiteChoice SelectedOffsite
+    {
+        get => _selectedOffsite;
+        set
+        {
+            if (Set(ref _selectedOffsite, value))
+                OnPropertyChanged(nameof(HasOffsite));
+        }
+    }
+
+    public bool HasOffsite => SelectedOffsite.Id is not null;
+
+    public RetentionMode OffsiteRetentionMode
+    {
+        get => Working.OffsiteRetention.Mode;
+        set { Working.OffsiteRetention.Mode = value; OnPropertyChanged(); }
+    }
+
+    public string RpoHoursText { get; set; }
+    public string OffsiteKeepLastText { get; set; }
+    public string OffsiteMaxAgeDaysText { get; set; }
 
     public ScheduleKind ScheduleKind
     {
@@ -328,8 +395,8 @@ public sealed class JobEditorViewModel : ObservableObject
             return false;
         }
 
-        var databases = DatabaseItems.Where(i => i.IsSelected).Select(i => i.Name).ToList();
-        if (databases.Count == 0)
+        var checkedDatabases = DatabaseItems.Where(i => i.IsSelected).Select(i => i.Name).ToList();
+        if (SelectionMode == DatabaseSelectionMode.Explicit && checkedDatabases.Count == 0)
         {
             error = "Select at least one database to back up.";
             return false;
@@ -361,10 +428,42 @@ public sealed class JobEditorViewModel : ObservableObject
             Working.Retention.MaxAgeDays = days;
         }
 
+        if (!int.TryParse(RpoHoursText, out var rpoHours) || rpoHours < 0)
+        {
+            error = "RPO must be a whole number of hours (0 disables the alert).";
+            return false;
+        }
+
+        if (HasOffsite)
+        {
+            if (OffsiteRetentionMode == RetentionMode.KeepLastN)
+            {
+                if (!int.TryParse(OffsiteKeepLastText, out var keep) || keep < 1)
+                {
+                    error = "Off-site retention: 'keep last' must be a whole number ≥ 1.";
+                    return false;
+                }
+                Working.OffsiteRetention.KeepLast = keep;
+            }
+            else if (OffsiteRetentionMode == RetentionMode.MaxAgeDays)
+            {
+                if (!int.TryParse(OffsiteMaxAgeDaysText, out var days) || days < 1)
+                {
+                    error = "Off-site retention: 'max age' must be a whole number of days ≥ 1.";
+                    return false;
+                }
+                Working.OffsiteRetention.MaxAgeDays = days;
+            }
+        }
+
         Working.ConnectionId = SelectedConnection.Id;
-        Working.Databases = databases;
+        Working.SelectionMode = SelectionMode;
+        Working.Databases = SelectionMode == DatabaseSelectionMode.Explicit ? checkedDatabases : new List<string>();
+        Working.ExcludedDatabases = SelectionMode == DatabaseSelectionMode.Explicit ? new List<string>() : checkedDatabases;
         Working.Schedule = schedule;
         Working.Retention.Mode = RetentionMode;
+        Working.RpoHours = rpoHours;
+        Working.OffsiteDestinationId = SelectedOffsite.Id;
         return true;
     }
 }

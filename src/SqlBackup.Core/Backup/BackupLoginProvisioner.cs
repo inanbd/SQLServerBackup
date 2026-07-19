@@ -151,7 +151,7 @@ public static class BackupLoginProvisioner
         }
 
         var granted = new List<string>();
-        foreach (var database in await SqlServerQueries.ListDatabasesAsync(adminConnectionString, ct))
+        foreach (var database in await SqlServerQueries.ListDatabasesAsync(adminConnectionString, includeSystemDatabases: true, ct))
         {
             try
             {

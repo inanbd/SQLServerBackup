@@ -23,6 +23,14 @@ public sealed class NotificationSettings
     public bool OnlyOnFailure { get; set; } = true;
 
     public string SubjectPrefix { get; set; } = "[SqlBackup]";
+
+    /// <summary>POST job results as JSON to a webhook (payload includes Slack/Discord-compatible text fields).</summary>
+    public bool WebhookEnabled { get; set; }
+
+    public string WebhookUrl { get; set; } = "";
+
+    /// <summary>Write job results to the Windows Event Log (source "SqlBackup").</summary>
+    public bool EventLogEnabled { get; set; }
 }
 
 public sealed class ServiceSettings
@@ -46,6 +54,9 @@ public sealed class ServiceSettings
 
     /// <summary>Warn in the job history when destination free space drops below this.</summary>
     public int MinFreeDiskSpaceWarnMb { get; set; } = 512;
+
+    /// <summary>How often the service evaluates RPO (missing-backup) alerts.</summary>
+    public int RpoCheckMinutes { get; set; } = 15;
 }
 
 /// <summary>
@@ -62,6 +73,8 @@ public sealed class AppConfig
 
     public List<BackupJob> Jobs { get; set; } = new();
 
+    public List<OffsiteDestination> OffsiteDestinations { get; set; } = new();
+
     public NotificationSettings Notifications { get; set; } = new();
 
     public ServiceSettings Service { get; set; } = new();
@@ -69,4 +82,7 @@ public sealed class AppConfig
     public ConnectionProfile? FindConnection(Guid id) => Connections.FirstOrDefault(c => c.Id == id);
 
     public BackupJob? FindJob(Guid id) => Jobs.FirstOrDefault(j => j.Id == id);
+
+    public OffsiteDestination? FindOffsiteDestination(Guid? id) =>
+        id is { } value ? OffsiteDestinations.FirstOrDefault(d => d.Id == value) : null;
 }

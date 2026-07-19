@@ -43,7 +43,9 @@ JSON conventions: camelCase property names, enums as strings, timestamps as ISO-
       "name": "Nightly full",
       "enabled": true,
       "connectionId": "6f1f5f2e-83b1-4f5e-9f60-1c9f29a2b1aa",
-      "databases": ["Sales", "Inventory"],
+      "selectionMode": "Explicit",            // "Explicit" | "AllUserDatabases" | "AllDatabases"
+      "databases": ["Sales", "Inventory"],    // Explicit mode only
+      "excludedDatabases": [],                // discovery modes only; matched case-insensitively
       "type": "Full",                         // "Full" | "Differential" | "TransactionLog"
       "schedule": {
         "kind": "Daily",                      // "Interval" | "Daily" | "Weekly" | "Cron"
@@ -66,7 +68,24 @@ JSON conventions: camelCase property names, enums as strings, timestamps as ISO-
         "verifyAfterBackup": true,            // RESTORE VERIFYONLY after backup
         "fallbackToFullIfNoBase": true        // Diff/Log with no full backup -> take Full
       },
-      "catchUpMissedRun": false               // run once at startup if an occurrence was missed
+      "catchUpMissedRun": false,              // run once at startup if an occurrence was missed
+      "rpoHours": 26,                         // alert when no successful backup for N hours; 0 = off
+      "offsiteDestinationId": null,           // references offsiteDestinations[].id; null = no off-site copy
+      "offsiteRetention": { "mode": "KeepAll", "keepLast": 14, "maxAgeDays": 30 }
+    }
+  ],
+
+  "offsiteDestinations": [
+    {
+      "id": "9a7e...",
+      "name": "NAS",
+      "kind": "Sftp",                         // "AzureBlob" | "S3" | "Sftp"
+      "prefix": "server01",                   // optional key prefix for all uploads
+      // AzureBlob: azureContainerUrl + protectedAzureSasToken (SAS needs create/write/list/delete)
+      // S3:        s3Bucket, s3Region or s3ServiceUrl (+ s3ForcePathStyle), s3AccessKeyId, protectedS3SecretKey
+      // Sftp:      sftpHost, sftpPort, sftpUsername, protectedSftpPassword, sftpRemotePath
+      "sftpHost": "nas.local", "sftpPort": 22, "sftpUsername": "backup",
+      "protectedSftpPassword": "dpapi:...", "sftpRemotePath": "/backups/sql"
     }
   ],
 
@@ -79,12 +98,16 @@ JSON conventions: camelCase property names, enums as strings, timestamps as ISO-
     "protectedSmtpPassword": "dpapi:AQAAANC...",
     "fromAddress": "alerts@example.com",
     "toAddresses": "dba@example.com; ops@example.com",
-    "onlyOnFailure": true,
-    "subjectPrefix": "[SqlBackup]"
+    "onlyOnFailure": true,                    // applies to email and webhook; RPO alerts always send
+    "subjectPrefix": "[SqlBackup]",
+    "webhookEnabled": false,
+    "webhookUrl": "",                         // JSON POST; payload includes Slack "text" / Discord "content"
+    "eventLogEnabled": false                  // Windows Event Log, source "SqlBackup" (ids 1000/1001/1002)
   },
 
   "service": {
     "schedulerPollSeconds": 5,
+    "rpoCheckMinutes": 15,
     "sqlConnectRetries": 3,                   // extra attempts, backoff 5s/15s/45s
     "sqlRetryBaseDelaySeconds": 5,
     "commandTimeoutSeconds": 0,               // 0 = unlimited (backups can be long)

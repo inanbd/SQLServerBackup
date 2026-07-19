@@ -2,7 +2,10 @@ using System.Collections.Concurrent;
 using SqlBackup.Core.Backup;
 using SqlBackup.Core.Ipc;
 using SqlBackup.Core.Models;
+using SqlBackup.Core.Monitoring;
+using SqlBackup.Core.Notifications;
 using SqlBackup.Core.Scheduling;
+using SqlBackup.Core.Security;
 
 namespace SqlBackup.Service;
 
@@ -16,14 +19,18 @@ public sealed class SchedulerWorker : BackgroundService
     private readonly ServiceState _state;
     private readonly JobRunner _runner;
     private readonly ILogger<SchedulerWorker> _log;
+    private readonly AlertDispatcher _alerts;
     private readonly ConcurrentDictionary<Guid, Task> _running = new();
+    private readonly Dictionary<string, DateTimeOffset> _rpoLastAlerted = new();
+    private DateTimeOffset _lastRpoCheck = DateTimeOffset.MinValue;
     private CancellationToken _stoppingToken = CancellationToken.None;
 
-    public SchedulerWorker(ServiceState state, JobRunner runner, ILogger<SchedulerWorker> log)
+    public SchedulerWorker(ServiceState state, JobRunner runner, ISecretProtector protector, ILogger<SchedulerWorker> log)
     {
         _state = state;
         _runner = runner;
         _log = log;
+        _alerts = new AlertDispatcher(log, protector);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -47,6 +54,7 @@ public sealed class SchedulerWorker : BackgroundService
                 {
                     _state.ReloadIfChanged();
                     FireDueJobs();
+                    await CheckRpoAsync();
                 }
                 catch (Exception ex)
                 {
@@ -169,6 +177,52 @@ public sealed class SchedulerWorker : BackgroundService
         }
     }
 
+    /// <summary>
+    /// Periodic RPO (missing-backup) evaluation. Breaches surface in get-status and
+    /// alert on every enabled channel — once on detection, again every 24h while
+    /// the breach persists.
+    /// </summary>
+    private async Task CheckRpoAsync()
+    {
+        var config = _state.Config;
+        var interval = TimeSpan.FromMinutes(Math.Clamp(config.Service.RpoCheckMinutes, 1, 24 * 60));
+        var now = DateTimeOffset.UtcNow;
+        if (now - _lastRpoCheck < interval)
+            return;
+        _lastRpoCheck = now;
+
+        if (!config.Jobs.Any(j => j.RpoHours > 0))
+        {
+            _state.SetRpoBreaches(new List<string>());
+            return;
+        }
+
+        var breaches = RpoMonitor.Evaluate(
+            config.Jobs,
+            _state.History.GetLastSuccessPerJob(),
+            _state.History.GetLastSuccessPerJobDatabase(),
+            now);
+        _state.SetRpoBreaches(breaches.Select(b => b.Describe()).ToList());
+
+        var toAlert = new List<RpoBreach>();
+        foreach (var breach in breaches)
+        {
+            if (!_rpoLastAlerted.TryGetValue(breach.Key, out var lastAlert) || now - lastAlert > TimeSpan.FromHours(24))
+            {
+                toAlert.Add(breach);
+                _rpoLastAlerted[breach.Key] = now;
+            }
+        }
+        // Forget resolved breaches so they re-alert immediately if they come back.
+        foreach (var gone in _rpoLastAlerted.Keys.Except(breaches.Select(b => b.Key)).ToList())
+            _rpoLastAlerted.Remove(gone);
+
+        foreach (var breach in breaches)
+            _log.LogWarning("RPO breach: {Breach}", breach.Describe());
+        if (toAlert.Count > 0)
+            await _alerts.SendRpoBreachesAsync(config.Notifications, toAlert, _stoppingToken);
+    }
+
     /// <summary>Manual trigger, called by the IPC server.</summary>
     public RunJobResponse TriggerManualRun(Guid jobId)
     {
@@ -225,6 +279,7 @@ public sealed class SchedulerWorker : BackgroundService
                         Trigger = trigger,
                         Settings = config.Service,
                         Notifications = config.Notifications,
+                        OffsiteDestination = config.FindOffsiteDestination(job.OffsiteDestinationId),
                     }, _stoppingToken);
                     success = result.AllSucceeded;
                     summary = result.Summarize();

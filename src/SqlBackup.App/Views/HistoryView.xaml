@@ -27,6 +27,9 @@
               <DataTrigger Binding="{Binding Success}" Value="False">
                 <Setter Property="Background" Value="#FFFBE9E7" />
               </DataTrigger>
+              <DataTrigger Binding="{Binding OffsiteFailed}" Value="True">
+                <Setter Property="Background" Value="#FFFFF3D6" />
+              </DataTrigger>
             </Style.Triggers>
           </Style>
         </DataGrid.RowStyle>

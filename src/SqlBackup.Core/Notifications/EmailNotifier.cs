@@ -23,7 +23,7 @@ public static class EmailNotifier
         IReadOnlyList<JobHistoryEntry> entries,
         CancellationToken ct = default)
     {
-        var failures = entries.Count(e => !e.Success);
+        var failures = entries.Count(e => !e.IsFullySuccessful);
         if (!ShouldSend(settings, failures > 0))
             return;
 
@@ -37,7 +37,8 @@ public static class EmailNotifier
         body.AppendLine();
         foreach (var e in entries)
         {
-            body.AppendLine($"[{(e.Success ? "OK" : "FAILED")}] {e.Database} ({e.Type}), {e.DurationSeconds:F1}s");
+            var state = !e.Success ? "FAILED" : e.OffsiteSuccess == false ? "OK, OFF-SITE FAILED" : "OK";
+            body.AppendLine($"[{state}] {e.Database} ({e.Type}), {e.DurationSeconds:F1}s");
             if (e.FilePath is not null)
                 body.AppendLine($"    File: {e.FilePath}" + (e.FileSizeBytes is { } size ? $" ({size / (1024.0 * 1024.0):F1} MB)" : ""));
             if (!string.IsNullOrEmpty(e.Message))
@@ -55,6 +56,11 @@ public static class EmailNotifier
             $"{settings.SubjectPrefix} Test email",
             $"This is a test email from the SQL Server Backup suite on {Environment.MachineName}.", ct);
     }
+
+    /// <summary>Free-form alert (used for RPO breaches and similar non-run notifications).</summary>
+    public static Task SendCustomAsync(
+        NotificationSettings settings, ISecretProtector protector, string subject, string body, CancellationToken ct = default) =>
+        SendAsync(settings, protector, subject, body, ct);
 
     private static async Task SendAsync(
         NotificationSettings settings,

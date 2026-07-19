@@ -23,7 +23,9 @@ public sealed class MainViewModel : ObservableObject
             new("Dashboard", dashboard),
             new("Connections", new ConnectionsViewModel(services)),
             new("Backup Jobs", new JobsViewModel(services)),
+            new("Off-site", new OffsiteViewModel(services)),
             new("History", new HistoryViewModel(services)),
+            new("Reports", new ReportsViewModel(services)),
             new("Settings", new SettingsViewModel(services)),
         };
         _selectedSection = Sections[0];

@@ -17,7 +17,9 @@ public sealed class SettingsViewModel : ObservableObject, IActivatable
     private string? _newSmtpPassword;
     private string _serviceStateText = "";
     private string _emailTestResultText = "";
+    private string _webhookTestResultText = "";
     private string _saveStatusText = "";
+    private string _configTransferStatusText = "";
 
     public SettingsViewModel(AppServices services)
     {
@@ -29,17 +31,23 @@ public sealed class SettingsViewModel : ObservableObject, IActivatable
         });
         SaveCommand = new AsyncRelayCommand(_ => SaveAsync());
         SendTestEmailCommand = new AsyncRelayCommand(_ => SendTestEmailAsync());
+        SendTestWebhookCommand = new AsyncRelayCommand(_ => SendTestWebhookAsync());
         RefreshServiceStateCommand = new RelayCommand(_ => RefreshServiceState());
         OpenDataFolderCommand = new RelayCommand(_ => OpenFolder(AppPaths.DataDir));
         OpenLogsFolderCommand = new RelayCommand(_ => OpenFolder(AppPaths.LogDir));
+        ExportConfigCommand = new AsyncRelayCommand(_ => ExportConfigAsync());
+        ImportConfigCommand = new AsyncRelayCommand(_ => ImportConfigAsync());
     }
 
     public ServiceCommands ServiceCommands { get; }
     public ICommand SaveCommand { get; }
     public ICommand SendTestEmailCommand { get; }
+    public ICommand SendTestWebhookCommand { get; }
     public ICommand RefreshServiceStateCommand { get; }
     public ICommand OpenDataFolderCommand { get; }
     public ICommand OpenLogsFolderCommand { get; }
+    public ICommand ExportConfigCommand { get; }
+    public ICommand ImportConfigCommand { get; }
 
     // --- Notification settings (bound fields) ---
 
@@ -87,6 +95,24 @@ public sealed class SettingsViewModel : ObservableObject, IActivatable
         set { _notifications.OnlyOnFailure = value; OnPropertyChanged(); }
     }
 
+    public bool WebhookEnabled
+    {
+        get => _notifications.WebhookEnabled;
+        set { _notifications.WebhookEnabled = value; OnPropertyChanged(); }
+    }
+
+    public string WebhookUrl
+    {
+        get => _notifications.WebhookUrl;
+        set { _notifications.WebhookUrl = value; OnPropertyChanged(); }
+    }
+
+    public bool EventLogEnabled
+    {
+        get => _notifications.EventLogEnabled;
+        set { _notifications.EventLogEnabled = value; OnPropertyChanged(); }
+    }
+
     public string SmtpPasswordHint =>
         _notifications.ProtectedSmtpPassword is { Length: > 0 } ? "Leave blank to keep the stored password." : "";
 
@@ -100,6 +126,18 @@ public sealed class SettingsViewModel : ObservableObject, IActivatable
     {
         get => _emailTestResultText;
         private set => Set(ref _emailTestResultText, value);
+    }
+
+    public string WebhookTestResultText
+    {
+        get => _webhookTestResultText;
+        private set => Set(ref _webhookTestResultText, value);
+    }
+
+    public string ConfigTransferStatusText
+    {
+        get => _configTransferStatusText;
+        private set => Set(ref _configTransferStatusText, value);
     }
 
     public string SaveStatusText
@@ -133,6 +171,9 @@ public sealed class SettingsViewModel : ObservableObject, IActivatable
         OnPropertyChanged(nameof(ToAddresses));
         OnPropertyChanged(nameof(OnlyOnFailure));
         OnPropertyChanged(nameof(SmtpPasswordHint));
+        OnPropertyChanged(nameof(WebhookEnabled));
+        OnPropertyChanged(nameof(WebhookUrl));
+        OnPropertyChanged(nameof(EventLogEnabled));
     }
 
     private void RefreshServiceState()
@@ -193,6 +234,74 @@ public sealed class SettingsViewModel : ObservableObject, IActivatable
         {
             EmailTestResultText = "✗ " + ex.Message;
         }
+    }
+
+    private async Task SendTestWebhookAsync()
+    {
+        if (string.IsNullOrWhiteSpace(WebhookUrl))
+        {
+            WebhookTestResultText = "✗ Enter the webhook URL first.";
+            return;
+        }
+        WebhookTestResultText = "Sending…";
+        try
+        {
+            await Core.Notifications.WebhookNotifier.SendAsync(WebhookUrl,
+                Core.Notifications.WebhookNotifier.BuildAlertPayload(
+                    "test", $"SqlBackup test notification from {Environment.MachineName}", Array.Empty<string>()));
+            WebhookTestResultText = "✓ Webhook accepted the test payload.";
+        }
+        catch (Exception ex)
+        {
+            WebhookTestResultText = "✗ " + ex.Message;
+        }
+    }
+
+    private async Task ExportConfigAsync()
+    {
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "Export configuration",
+            FileName = $"sqlbackup-config-{DateTime.Now:yyyyMMdd}.json",
+            Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*",
+        };
+        if (dialog.ShowDialog() != true)
+            return;
+
+        var config = _services.ConfigStore.Load();
+        await Task.Run(() => Core.Config.ConfigPorter.ExportToFile(config, dialog.FileName));
+        ConfigTransferStatusText =
+            $"Exported to {dialog.FileName}. Passwords/secrets are NOT included — they are machine-bound; re-enter them after importing.";
+    }
+
+    private async Task ImportConfigAsync()
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Import configuration",
+            Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*",
+        };
+        if (dialog.ShowDialog() != true)
+            return;
+
+        var result = Core.Config.ConfigPorter.LoadFromFile(dialog.FileName);
+        var current = _services.ConfigStore.Load();
+        var summary =
+            $"Replace the current configuration?\n\n" +
+            $"Current: {current.Connections.Count} connection(s), {current.Jobs.Count} job(s), {current.OffsiteDestinations.Count} off-site destination(s).\n" +
+            $"File:    {result.Config.Connections.Count} connection(s), {result.Config.Jobs.Count} job(s), {result.Config.OffsiteDestinations.Count} off-site destination(s)." +
+            (result.Warnings.Count > 0 ? "\n\nAfter importing:\n• " + string.Join("\n• ", result.Warnings) : "");
+        if (MessageBox.Show(summary, "Import configuration", MessageBoxButton.YesNo, MessageBoxImage.Warning)
+            != MessageBoxResult.Yes)
+            return;
+
+        _services.ConfigStore.Save(result.Config);
+        await _services.TryNotifyServiceOfConfigChangeAsync();
+        Activated();
+        ConfigTransferStatusText = "Imported. " +
+            (result.Warnings.Count > 0
+                ? $"{result.Warnings.Count} credential(s) must be re-entered — see Connections/Off-site/Settings."
+                : "No credentials need re-entering.");
     }
 
     private static void OpenFolder(string path)

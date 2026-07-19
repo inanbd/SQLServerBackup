@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using SqlBackup.Core.History;
 using SqlBackup.Core.Models;
 using SqlBackup.Core.Notifications;
+using SqlBackup.Core.Offsite;
 using SqlBackup.Core.Security;
 
 namespace SqlBackup.Core.Backup;
@@ -14,23 +15,28 @@ public sealed class JobRunContext
     public required ConnectionProfile Connection { get; init; }
     public required RunTrigger Trigger { get; init; }
     public required ServiceSettings Settings { get; init; }
-    /// <summary>When set, an email report is sent after the run according to these settings.</summary>
+    /// <summary>When set, alerts (email/webhook/event log) are sent after the run.</summary>
     public NotificationSettings? Notifications { get; init; }
+    /// <summary>Resolved off-site destination for the job, when configured.</summary>
+    public OffsiteDestination? OffsiteDestination { get; init; }
 }
 
 public sealed class JobRunResult
 {
     public List<JobHistoryEntry> Entries { get; } = new();
-    public bool AllSucceeded => Entries.Count > 0 && Entries.All(e => e.Success);
-    public int FailureCount => Entries.Count(e => !e.Success);
+    public bool AllSucceeded => Entries.Count > 0 && Entries.All(e => e.IsFullySuccessful);
+    public int BackupFailureCount => Entries.Count(e => !e.Success);
+    public int OffsiteFailureCount => Entries.Count(e => e.Success && e.OffsiteSuccess == false);
 
     public string Summarize()
     {
         if (Entries.Count == 0)
             return "Nothing to do";
-        return AllSucceeded
-            ? $"OK ({Entries.Count} database(s))"
-            : $"FAILED ({FailureCount} of {Entries.Count} database(s))";
+        if (BackupFailureCount > 0)
+            return $"FAILED ({BackupFailureCount} of {Entries.Count} database(s))";
+        return OffsiteFailureCount > 0
+            ? $"OK, but off-site copy failed for {OffsiteFailureCount} of {Entries.Count} database(s)"
+            : $"OK ({Entries.Count} database(s))";
     }
 }
 
@@ -44,21 +50,24 @@ public sealed class JobRunner
     private readonly ILogger _log;
     private readonly HistoryStore _history;
     private readonly ISecretProtector _protector;
+    private readonly AlertDispatcher _alerts;
 
     public JobRunner(ILogger log, HistoryStore history, ISecretProtector protector)
     {
         _log = log;
         _history = history;
         _protector = protector;
+        _alerts = new AlertDispatcher(log, protector);
     }
 
     public async Task<JobRunResult> RunAsync(JobRunContext ctx, CancellationToken ct = default)
     {
         var job = ctx.Job;
         var result = new JobRunResult();
-        _log.LogInformation("Job '{Job}' starting ({Trigger}, {Count} database(s))", job.Name, ctx.Trigger, job.Databases.Count);
+        _log.LogInformation("Job '{Job}' starting ({Trigger}, targets: {Targets})",
+            job.Name, ctx.Trigger, DatabaseSelector.Describe(job));
 
-        if (job.Databases.Count == 0)
+        if (job.SelectionMode == DatabaseSelectionMode.Explicit && job.Databases.Count == 0)
         {
             RecordFailure(result, ctx, "(none)", "The job has no databases selected.");
             return result;
@@ -71,8 +80,7 @@ public sealed class JobRunner
         }
         catch (Exception ex)
         {
-            foreach (var db in job.Databases)
-                RecordFailure(result, ctx, db, $"Connection configuration error: {ex.Message}");
+            RecordFailureForAllTargets(result, ctx, $"Connection configuration error: {ex.Message}");
             await NotifyAsync(ctx, result);
             return result;
         }
@@ -81,8 +89,34 @@ public sealed class JobRunner
             connectionString, ctx.Settings, ctx.Connection.AuthMode, ct);
         if (!reachable)
         {
-            foreach (var db in job.Databases)
-                RecordFailure(result, ctx, db, connectError ?? "SQL Server unreachable.");
+            RecordFailureForAllTargets(result, ctx, connectError ?? "SQL Server unreachable.");
+            await NotifyAsync(ctx, result);
+            return result;
+        }
+
+        // Discovery modes resolve their database list at run time, so databases
+        // created after the job was configured are picked up automatically.
+        List<string> databases;
+        try
+        {
+            List<string>? onServer = null;
+            if (job.SelectionMode != DatabaseSelectionMode.Explicit)
+            {
+                onServer = await SqlServerQueries.ListDatabasesAsync(
+                    connectionString, includeSystemDatabases: job.SelectionMode == DatabaseSelectionMode.AllDatabases, ct);
+            }
+            databases = DatabaseSelector.Resolve(job.SelectionMode, job.Databases, job.ExcludedDatabases, onServer);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            RecordFailureForAllTargets(result, ctx, $"Could not enumerate databases: {ex.Message}");
+            await NotifyAsync(ctx, result);
+            return result;
+        }
+
+        if (databases.Count == 0)
+        {
+            RecordFailure(result, ctx, "(none)", "No databases matched the job's selection (check exclusions).");
             await NotifyAsync(ctx, result);
             return result;
         }
@@ -90,10 +124,12 @@ public sealed class JobRunner
         var destinationIssues = PreflightChecker.CheckDestination(
             job.DestinationFolder, expectedBytes: null, ctx.Settings.MinFreeDiskSpaceWarnMb);
 
-        foreach (var database in job.Databases)
+        using var offsite = CreateOffsiteUploader(ctx, result);
+
+        foreach (var database in databases)
         {
             ct.ThrowIfCancellationRequested();
-            var entry = await BackupOneDatabaseAsync(ctx, connectionString, database, destinationIssues, ct);
+            var entry = await BackupOneDatabaseAsync(ctx, connectionString, database, destinationIssues, offsite?.Uploader, ct);
             _history.Append(entry);
             result.Entries.Add(entry);
         }
@@ -103,11 +139,49 @@ public sealed class JobRunner
         return result;
     }
 
+    private sealed class OffsiteHandle : IDisposable
+    {
+        public required Offsite.IOffsiteProvider Provider { get; init; }
+        public required OffsiteUploader Uploader { get; init; }
+        public void Dispose() => Provider.Dispose();
+    }
+
+    private OffsiteHandle? CreateOffsiteUploader(JobRunContext ctx, JobRunResult result)
+    {
+        if (ctx.OffsiteDestination is not { } destination)
+            return null;
+        try
+        {
+            var provider = OffsiteProviderFactory.Create(destination, _protector);
+            return new OffsiteHandle { Provider = provider, Uploader = new OffsiteUploader(provider, _log) };
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "Off-site destination '{Name}' is unusable", destination.Name);
+            // Recorded per entry below via the null uploader + note is not possible here;
+            // surface it once as a job-level marker on the first entry instead.
+            result.Entries.Add(new JobHistoryEntry
+            {
+                JobId = ctx.Job.Id,
+                JobName = ctx.Job.Name,
+                Database = "(off-site)",
+                Type = ctx.Job.Type,
+                Trigger = ctx.Trigger,
+                StartedUtc = DateTimeOffset.UtcNow,
+                Success = false,
+                Error = $"Off-site destination '{destination.Name}' is unusable: {ex.Message}",
+            });
+            _history.Append(result.Entries[^1]);
+            return null;
+        }
+    }
+
     private async Task<JobHistoryEntry> BackupOneDatabaseAsync(
         JobRunContext ctx,
         string connectionString,
         string database,
         IReadOnlyList<PreflightIssue> destinationIssues,
+        OffsiteUploader? offsite,
         CancellationToken ct)
     {
         var job = ctx.Job;
@@ -197,13 +271,26 @@ public sealed class JobRunner
                 var retention = RetentionEnforcer.Apply(folder, database, effectiveType, job.Retention, now);
                 if (retention.DeletedFiles.Count > 0)
                     notes.Add($"Retention: deleted {retention.DeletedFiles.Count} old backup file(s).");
+                if (retention.KeptForChain.Count > 0)
+                    notes.Add($"Retention: kept {retention.KeptForChain.Count} full backup(s) still needed by newer differential/log backups.");
                 foreach (var error in retention.Errors)
                     notes.Add($"Retention error: {error}");
+
+                if (offsite is not null)
+                {
+                    var offsiteResult = await offsite.ProcessAsync(
+                        filePath, database, job.SubfolderPerDatabase, effectiveType,
+                        job.OffsiteRetention, ctx.OffsiteDestination?.Prefix, now, ct);
+                    entry.OffsiteSuccess = offsiteResult.Success;
+                    notes.AddRange(offsiteResult.Notes);
+                }
             }
             else
             {
                 notes.Add("Backup file is not visible from this machine (it was written by the SQL Server host); " +
-                          "size not recorded and retention skipped.");
+                          "size not recorded, retention and off-site copy skipped.");
+                if (offsite is not null)
+                    entry.OffsiteSuccess = false;
             }
 
             entry.Success = true;
@@ -284,6 +371,20 @@ public sealed class JobRunner
         return hint is null ? text : $"{text} — {hint}";
     }
 
+    /// <summary>One failure entry per known target; discovery modes get a single descriptive entry.</summary>
+    private void RecordFailureForAllTargets(JobRunResult result, JobRunContext ctx, string error)
+    {
+        if (ctx.Job.SelectionMode == DatabaseSelectionMode.Explicit)
+        {
+            foreach (var db in ctx.Job.Databases.DefaultIfEmpty("(none)"))
+                RecordFailure(result, ctx, db, error);
+        }
+        else
+        {
+            RecordFailure(result, ctx, DatabaseSelector.Describe(ctx.Job), error);
+        }
+    }
+
     private void RecordFailure(JobRunResult result, JobRunContext ctx, string database, string error)
     {
         var entry = new JobHistoryEntry
@@ -306,13 +407,6 @@ public sealed class JobRunner
     {
         if (ctx.Notifications is null || result.Entries.Count == 0)
             return;
-        try
-        {
-            await EmailNotifier.SendJobReportAsync(ctx.Notifications, _protector, ctx.Job.Name, result.Entries);
-        }
-        catch (Exception ex)
-        {
-            _log.LogWarning(ex, "Sending the notification email failed");
-        }
+        await _alerts.SendJobReportAsync(ctx.Notifications, ctx.Job.Name, result.Entries);
     }
 }

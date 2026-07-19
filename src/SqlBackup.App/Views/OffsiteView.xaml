@@ -1,0 +1,27 @@
+<UserControl x:Class="SqlBackup.App.Views.OffsiteView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <DockPanel>
+    <TextBlock DockPanel.Dock="Top" Text="Off-site destinations" Style="{StaticResource SectionHeader}" />
+    <TextBlock DockPanel.Dock="Top" TextWrapping="Wrap" Foreground="#FF57606A" Margin="0,0,0,10"
+               Text="Copies of successful local backups are uploaded here. Assign a destination to a job in the job editor (Off-site copy section). Secrets are stored DPAPI-encrypted." />
+
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,10">
+      <Button Content="Add…" Command="{Binding AddCommand}" Padding="12,5" Margin="0,0,8,0" />
+      <Button Content="Edit…" Command="{Binding EditCommand}" Padding="12,5" Margin="0,0,8,0" />
+      <Button Content="Delete" Command="{Binding DeleteCommand}" Padding="12,5" />
+    </StackPanel>
+
+    <DataGrid ItemsSource="{Binding Destinations}" SelectedItem="{Binding SelectedRow, Mode=TwoWay}"
+              AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"
+              SelectionMode="Single" GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+              MouseDoubleClick="OnRowDoubleClick">
+      <DataGrid.Columns>
+        <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" />
+        <DataGridTextColumn Header="Kind" Binding="{Binding KindText}" Width="Auto" />
+        <DataGridTextColumn Header="Target" Binding="{Binding TargetText}" Width="2.5*" />
+        <DataGridTextColumn Header="Prefix" Binding="{Binding PrefixText}" Width="*" />
+      </DataGrid.Columns>
+    </DataGrid>
+  </DockPanel>
+</UserControl>

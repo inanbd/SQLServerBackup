@@ -31,6 +31,7 @@ public sealed class DashboardViewModel : ObservableObject, IActivatable
     private bool _firstRefreshDone;
     private string _serviceStateText = "Checking…";
     private string _serviceDetailText = "";
+    private string _rpoAlertsText = "";
     private bool _serviceReachable;
 
     public DashboardViewModel(AppServices services)
@@ -71,6 +72,18 @@ public sealed class DashboardViewModel : ObservableObject, IActivatable
         private set => Set(ref _serviceReachable, value);
     }
 
+    public string RpoAlertsText
+    {
+        get => _rpoAlertsText;
+        private set
+        {
+            if (Set(ref _rpoAlertsText, value))
+                OnPropertyChanged(nameof(HasRpoAlerts));
+        }
+    }
+
+    public bool HasRpoAlerts => RpoAlertsText.Length > 0;
+
     public void Activated() => _ = RefreshAsync();
 
     private async Task RefreshAsync()
@@ -108,11 +121,15 @@ public sealed class DashboardViewModel : ObservableObject, IActivatable
                 ServiceDetailText = $"v{status.ServiceVersion}, pid {status.ProcessId}, up {FormatUptime(uptime)}"
                     + (status.ServiceAccount.Length > 0 ? $", running as {status.ServiceAccount}" : "")
                     + (status.ConfigError is { } err ? $" — CONFIG ERROR: {err}" : "");
+                RpoAlertsText = status.RpoBreaches.Count > 0
+                    ? "⚠ RPO alerts:\n" + string.Join("\n", status.RpoBreaches)
+                    : "";
                 UpdateRows(status);
                 DetectNewFailures(status);
             }
             else
             {
+                RpoAlertsText = "";
                 ServiceDetailText = installState == ServiceInstallState.NotInstalled
                     ? "Install the service from Settings, or run jobs manually from Backup Jobs."
                     : "Start the service to resume scheduled backups.";

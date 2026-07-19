@@ -25,8 +25,11 @@ public sealed class HistoryRow
     public string Database => Entry.Database;
     public string TypeText => Entry.Type.ToString();
     public string TriggerText => Entry.Trigger.ToString();
-    public string ResultText => Entry.Success ? "OK" : "FAILED";
+    public string ResultText => !Entry.Success ? "FAILED"
+        : Entry.OffsiteSuccess == false ? "OK / off-site FAILED"
+        : "OK";
     public bool Success => Entry.Success;
+    public bool OffsiteFailed => Entry.Success && Entry.OffsiteSuccess == false;
     public string DurationText => $"{Entry.DurationSeconds:F1} s";
     public string SizeText => Entry.FileSizeBytes is { } size ? $"{size / (1024.0 * 1024.0):F1} MB" : "—";
     public string FileName => Entry.FilePath is { } path ? System.IO.Path.GetFileName(path) : "—";

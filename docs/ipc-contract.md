@@ -58,6 +58,9 @@ connection is never just dropped.
       "lastRunSummary": "OK (2 database(s))",
       "scheduleError": null
     }
+  ],
+  "rpoBreaches": [
+    "Job 'Nightly full' / [Sales]: target is a successful backup every 26h — last success 2026-07-17 02:30."
   ]
 }
 ```

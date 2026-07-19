@@ -58,15 +58,30 @@ flowchart LR
   `CREATE ANY DATABASE` for `RESTORE VERIFYONLY`. An existing `iSQLBackup_*`
   login for the same connection is reused with its password reset, so
   re-provisioning never litters the server.
-* Jobs: any number of databases per job; **Full / Differential / Transaction
-  log** backups; per-job destination (local or UNC), optional subfolder per
-  database; timestamped file names (`Db_Full_20260718_023000.bak`).
+* Jobs: any number of databases per job — explicitly listed, or **"all user
+  databases" / "all databases" with exclusions**, discovered at run time so
+  newly created databases are backed up automatically; **Full / Differential /
+  Transaction log** backups; per-job destination (local or UNC), optional
+  subfolder per database; timestamped file names (`Db_Full_20260718_023000.bak`).
 * Schedules: every N minutes, daily at a time, weekly on chosen days, or a
   **cron expression** (Cronos, DST-safe); schedule preview in the editor;
   optional one-shot **catch-up** when the service was off at the due time.
 * Retention per job: keep all, keep last N, or delete older than X days —
-  only files matching this tool's naming pattern are ever touched, and the
-  newest backup always survives.
+  only files matching this tool's naming pattern are ever touched, the newest
+  backup always survives, and retention is **chain-aware**: a full backup is
+  never deleted while surviving differential/log backups still depend on it.
+* **RPO (missing-backup) alerts**: per job, "alert when there is no successful
+  backup for N hours" — fires even when the job never runs at all (disabled
+  job, stopped scheduler, broken cron), shows on the dashboard, and re-alerts
+  daily while unresolved.
+* **Off-site copies**: after a successful local backup, upload to **Azure Blob
+  Storage, Amazon S3 (or any S3-compatible endpoint), or SFTP** with retries
+  and an independent, also chain-aware retention policy on the remote side. An
+  upload failure marks the run "off-site failed" and alerts, without
+  invalidating the local backup.
+* **Reports**: 30-day success rate, run/failure counts, current full-backup
+  footprint, bytes written, and per-database size trends (14-day mini chart),
+  duration stats and growth percentage.
 * Options per job: native compression, `CHECKSUM`, copy-only,
   **`RESTORE VERIFYONLY` after each backup**, automatic full-backup fallback
   when a differential/log has no base (plus a SIMPLE-recovery-model guard).
@@ -77,7 +92,12 @@ flowchart LR
   history browser with filtering and details, tray icon with quick actions and
   failure balloons; config changes hot-apply to the service (IPC push + file
   watch — no service restart).
-* Email notifications (SMTP, TLS, on-failure-only or always) + "send test email".
+* Alerts on **email (SMTP)**, a **generic JSON webhook** (payload is
+  Slack/Teams/Discord-compatible out of the box) and the **Windows Event Log**
+  (source `SqlBackup`), each with a test button; on-failure-only or always.
+* **Config export/import** (Settings page): replicate a setup across machines.
+  Secrets are never exported (they are DPAPI machine-bound); the import lists
+  exactly which credentials must be re-entered.
 * Service lifecycle from the app: install / start / stop / uninstall with UAC
   elevation, crash auto-restart configured via `sc failure`.
 * Standalone mode: run any job directly inside the app when the service isn't

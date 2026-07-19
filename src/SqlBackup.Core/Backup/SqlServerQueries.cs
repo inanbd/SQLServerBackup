@@ -22,13 +22,17 @@ public static class SqlServerQueries
         return new ServerInfo(reader.GetString(0), reader.GetString(1), reader.GetString(2));
     }
 
-    public static async Task<List<string>> ListDatabasesAsync(string connectionString, CancellationToken ct = default)
+    /// <summary>Online databases except tempdb; optionally also excluding master/model/msdb.</summary>
+    public static async Task<List<string>> ListDatabasesAsync(
+        string connectionString, bool includeSystemDatabases = true, CancellationToken ct = default)
     {
+        var sql = "SELECT name FROM sys.databases WHERE name <> 'tempdb' AND state_desc = 'ONLINE'" +
+                  (includeSystemDatabases ? "" : " AND name NOT IN ('master','model','msdb')") +
+                  " ORDER BY name";
         var result = new List<string>();
         await using var conn = new SqlConnection(connectionString);
         await conn.OpenAsync(ct);
-        await using var cmd = new SqlCommand(
-            "SELECT name FROM sys.databases WHERE name <> 'tempdb' AND state_desc = 'ONLINE' ORDER BY name", conn);
+        await using var cmd = new SqlCommand(sql, conn);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
             result.Add(reader.GetString(0));

@@ -48,6 +48,8 @@
               <RowDefinition Height="Auto" />
               <RowDefinition Height="Auto" />
               <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
             <CheckBox Grid.ColumnSpan="2" Content="Send email reports about backup runs"
@@ -82,19 +84,45 @@
               <TextBlock Text="Separate multiple recipients with ; or ," Foreground="Gray" FontSize="11" Margin="0,2,0,0" />
             </StackPanel>
 
-            <CheckBox Grid.Row="6" Grid.ColumnSpan="2" Content="Only email when a backup fails"
+            <CheckBox Grid.Row="6" Grid.ColumnSpan="2" Content="Only alert when a backup fails (applies to email and webhook)"
                       IsChecked="{Binding OnlyOnFailure}" Margin="0,10,0,0" />
 
-            <StackPanel Grid.Row="7" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,12,0,0">
+            <StackPanel Grid.Row="7" Grid.ColumnSpan="2" Margin="0,12,0,0">
+              <CheckBox Content="POST results to a webhook (Slack/Teams/Discord-compatible payload)"
+                        IsChecked="{Binding WebhookEnabled}" />
+              <DockPanel Margin="20,6,0,0">
+                <Button DockPanel.Dock="Right" Content="Send test" Command="{Binding SendTestWebhookCommand}"
+                        Padding="10,3" Margin="8,0,0,0" />
+                <TextBox Text="{Binding WebhookUrl, UpdateSourceTrigger=PropertyChanged}" />
+              </DockPanel>
+              <TextBlock Text="{Binding WebhookTestResultText}" TextWrapping="Wrap" Margin="20,4,0,0" />
+            </StackPanel>
+
+            <CheckBox Grid.Row="8" Grid.ColumnSpan="2" Content="Write results to the Windows Event Log (source 'SqlBackup')"
+                      IsChecked="{Binding EventLogEnabled}" Margin="0,10,0,0" />
+
+            <StackPanel Grid.Row="9" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,12,0,0">
               <Button Content="Save settings" Command="{Binding SaveCommand}" Padding="14,5" Margin="0,0,8,0" FontWeight="SemiBold" />
               <Button Content="Send test email" Command="{Binding SendTestEmailCommand}" Padding="14,5" />
             </StackPanel>
 
-            <StackPanel Grid.Row="8" Grid.ColumnSpan="2" Margin="0,8,0,0">
+            <StackPanel Grid.Row="10" Grid.ColumnSpan="2" Margin="0,8,0,0">
               <TextBlock Text="{Binding SaveStatusText}" Foreground="#FF3AA655" />
               <TextBlock Text="{Binding EmailTestResultText}" TextWrapping="Wrap" />
             </StackPanel>
           </Grid>
+        </GroupBox>
+
+        <GroupBox Header="Configuration transfer" Padding="12" Margin="0,14,0,0">
+          <StackPanel>
+            <TextBlock TextWrapping="Wrap" Foreground="#FF57606A" FontSize="11"
+                       Text="Export writes the whole configuration (connections, jobs, off-site destinations, settings) as JSON for replicating this setup on another machine. Passwords and secrets are never exported — they are encrypted for this machine only — so re-enter them after importing. Import replaces the current configuration." />
+            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+              <Button Content="Export…" Command="{Binding ExportConfigCommand}" Padding="14,5" Margin="0,0,8,0" />
+              <Button Content="Import…" Command="{Binding ImportConfigCommand}" Padding="14,5" />
+            </StackPanel>
+            <TextBlock Text="{Binding ConfigTransferStatusText}" TextWrapping="Wrap" Margin="0,8,0,0" />
+          </StackPanel>
         </GroupBox>
       </StackPanel>
     </DockPanel>

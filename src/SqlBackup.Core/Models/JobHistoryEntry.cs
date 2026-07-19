@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace SqlBackup.Core.Models;
 
 /// <summary>One backup attempt for one database. Persisted as JSON lines by the history store.</summary>
@@ -30,4 +32,11 @@ public sealed class JobHistoryEntry
     public string? Message { get; set; }
 
     public string? Error { get; set; }
+
+    /// <summary>Outcome of the off-site copy: null = not configured/not applicable.</summary>
+    public bool? OffsiteSuccess { get; set; }
+
+    /// <summary>Backup succeeded AND the off-site copy (when configured) succeeded.</summary>
+    [JsonIgnore]
+    public bool IsFullySuccessful => Success && OffsiteSuccess != false;
 }

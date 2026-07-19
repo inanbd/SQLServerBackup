@@ -51,7 +51,14 @@ public sealed class BackupJob
     /// <summary>References <see cref="ConnectionProfile.Id"/>.</summary>
     public Guid ConnectionId { get; set; }
 
+    /// <summary>How the database list is determined (fixed list vs. run-time discovery).</summary>
+    public DatabaseSelectionMode SelectionMode { get; set; } = DatabaseSelectionMode.Explicit;
+
+    /// <summary>Databases to back up (<see cref="DatabaseSelectionMode.Explicit"/> only).</summary>
     public List<string> Databases { get; set; } = new();
+
+    /// <summary>Databases to skip (All/AllUser selection modes only).</summary>
+    public List<string> ExcludedDatabases { get; set; } = new();
 
     public BackupType Type { get; set; } = BackupType.Full;
 
@@ -72,4 +79,16 @@ public sealed class BackupJob
     /// run the job once at startup instead of waiting for the next occurrence.
     /// </summary>
     public bool CatchUpMissedRun { get; set; }
+
+    /// <summary>
+    /// Recovery-point objective: alert when this job has produced no successful
+    /// backup for this many hours. 0 disables the check.
+    /// </summary>
+    public int RpoHours { get; set; }
+
+    /// <summary>Optional off-site copy target; references <see cref="OffsiteDestination.Id"/>.</summary>
+    public Guid? OffsiteDestinationId { get; set; }
+
+    /// <summary>Retention applied to the off-site copies (independent of local retention).</summary>
+    public RetentionPolicy OffsiteRetention { get; set; } = new() { Mode = RetentionMode.KeepAll };
 }

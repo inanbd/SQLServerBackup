@@ -25,6 +25,7 @@ public sealed class ServiceState
     private readonly Dictionary<Guid, JobRuntime> _runtimes = new();
     private AppConfig _config = new();
     private DateTimeOffset _configStamp = DateTimeOffset.MinValue;
+    private List<string> _rpoBreaches = new();
 
     public ServiceState(ConfigStore store, HistoryStore history)
     {
@@ -108,6 +109,14 @@ public sealed class ServiceState
         }
     }
 
+    public void SetRpoBreaches(List<string> breaches)
+    {
+        lock (_gate)
+        {
+            _rpoBreaches = breaches;
+        }
+    }
+
     public void EndRun(Guid jobId, DateTimeOffset startedUtc, bool success, string summary)
     {
         lock (_gate)
@@ -132,6 +141,7 @@ public sealed class ServiceState
                 StartedUtc = StartedUtc,
                 ConfigModifiedUtc = _config.ModifiedUtc,
                 ConfigError = ConfigError,
+                RpoBreaches = _rpoBreaches.ToList(),
             };
             foreach (var job in _config.Jobs)
             {

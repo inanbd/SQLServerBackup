@@ -32,6 +32,23 @@ public enum RetentionMode
     MaxAgeDays,
 }
 
+public enum DatabaseSelectionMode
+{
+    /// <summary>Back up exactly the databases listed on the job.</summary>
+    Explicit,
+    /// <summary>Back up every online user database, discovered at run time, minus exclusions.</summary>
+    AllUserDatabases,
+    /// <summary>Like AllUserDatabases but including master/model/msdb.</summary>
+    AllDatabases,
+}
+
+public enum OffsiteKind
+{
+    AzureBlob,
+    S3,
+    Sftp,
+}
+
 public enum RunTrigger
 {
     Scheduled,

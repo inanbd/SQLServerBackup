@@ -1,0 +1,101 @@
+<UserControl x:Class="SqlBackup.App.Views.ReportsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <UserControl.Resources>
+    <Style x:Key="Card" TargetType="Border">
+      <Setter Property="BorderBrush" Value="#FFCBD5E0" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Background" Value="#FFF6F8FA" />
+      <Setter Property="Padding" Value="14,10" />
+      <Setter Property="Margin" Value="0,0,10,0" />
+      <Setter Property="MinWidth" Value="150" />
+    </Style>
+    <Style x:Key="CardLabel" TargetType="TextBlock">
+      <Setter Property="Foreground" Value="#FF57606A" />
+      <Setter Property="FontSize" Value="11" />
+    </Style>
+    <Style x:Key="CardValue" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="19" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Margin" Value="0,2,0,0" />
+    </Style>
+  </UserControl.Resources>
+
+  <DockPanel>
+    <DockPanel DockPanel.Dock="Top">
+      <Button DockPanel.Dock="Right" Content="Refresh" Command="{Binding RefreshCommand}"
+              Padding="12,5" VerticalAlignment="Top" />
+      <TextBlock Text="Reports (last 30 days)" Style="{StaticResource SectionHeader}" />
+    </DockPanel>
+
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,14">
+      <Border Style="{StaticResource Card}">
+        <StackPanel>
+          <TextBlock Text="Success rate" Style="{StaticResource CardLabel}" />
+          <TextBlock Text="{Binding SuccessRateText}" Style="{StaticResource CardValue}" />
+        </StackPanel>
+      </Border>
+      <Border Style="{StaticResource Card}">
+        <StackPanel>
+          <TextBlock Text="Backup runs" Style="{StaticResource CardLabel}" />
+          <TextBlock Text="{Binding RunsText}" Style="{StaticResource CardValue}" />
+        </StackPanel>
+      </Border>
+      <Border Style="{StaticResource Card}">
+        <StackPanel>
+          <TextBlock Text="Current full-backup footprint" Style="{StaticResource CardLabel}" />
+          <TextBlock Text="{Binding FootprintText}" Style="{StaticResource CardValue}" />
+        </StackPanel>
+      </Border>
+      <Border Style="{StaticResource Card}">
+        <StackPanel>
+          <TextBlock Text="Bytes written (30 d)" Style="{StaticResource CardLabel}" />
+          <TextBlock Text="{Binding WrittenText}" Style="{StaticResource CardValue}" />
+        </StackPanel>
+      </Border>
+    </StackPanel>
+
+    <DataGrid ItemsSource="{Binding Rows}" AutoGenerateColumns="False" IsReadOnly="True"
+              CanUserAddRows="False" SelectionMode="Single" GridLinesVisibility="Horizontal"
+              HeadersVisibility="Column" RowHeight="46">
+      <DataGrid.RowStyle>
+        <Style TargetType="DataGridRow">
+          <Style.Triggers>
+            <DataTrigger Binding="{Binding HasFailures}" Value="True">
+              <Setter Property="Background" Value="#FFFFF7E6" />
+            </DataTrigger>
+          </Style.Triggers>
+        </Style>
+      </DataGrid.RowStyle>
+      <DataGrid.Columns>
+        <DataGridTextColumn Header="Job" Binding="{Binding JobName}" Width="*" />
+        <DataGridTextColumn Header="Database" Binding="{Binding Database}" Width="*" />
+        <DataGridTextColumn Header="Last full" Binding="{Binding LastFullText}" Width="1.4*" />
+        <DataGridTextColumn Header="Success" Binding="{Binding SuccessRateText}" Width="Auto" />
+        <DataGridTextColumn Header="Avg dur." Binding="{Binding AvgDurationText}" Width="Auto" />
+        <DataGridTextColumn Header="Max dur." Binding="{Binding MaxDurationText}" Width="Auto" />
+        <DataGridTextColumn Header="Growth (30 d)" Binding="{Binding GrowthText}" Width="Auto" />
+        <DataGridTemplateColumn Header="Full size, last 14 days" Width="140">
+          <DataGridTemplateColumn.CellTemplate>
+            <DataTemplate>
+              <ItemsControl ItemsSource="{Binding Bars}" VerticalAlignment="Bottom" Margin="4,0,4,4">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Rectangle Width="6" Height="{Binding Height}" Fill="#FF4A7DAB" Margin="1,0"
+                               VerticalAlignment="Bottom" ToolTip="{Binding Tooltip}" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </DataTemplate>
+          </DataGridTemplateColumn.CellTemplate>
+        </DataGridTemplateColumn>
+      </DataGrid.Columns>
+    </DataGrid>
+  </DockPanel>
+</UserControl>

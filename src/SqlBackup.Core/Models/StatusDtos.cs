@@ -28,4 +28,6 @@ public sealed class ServiceStatusInfo
     /// <summary>Set when the last attempt to load config.json failed; the service keeps the previous config.</summary>
     public string? ConfigError { get; set; }
     public List<JobStatusInfo> Jobs { get; set; } = new();
+    /// <summary>Human-readable active RPO (missing-backup) alerts; empty when everything is fresh.</summary>
+    public List<string> RpoBreaches { get; set; } = new();
 }

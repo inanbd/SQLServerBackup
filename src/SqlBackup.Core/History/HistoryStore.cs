@@ -65,6 +65,34 @@ public sealed class HistoryStore
             .ToDictionary(g => g.Key, g => g.OrderByDescending(e => e.StartedUtc).First());
     }
 
+    /// <summary>Timestamp of the newest successful entry per job (RPO monitoring).</summary>
+    public Dictionary<Guid, DateTimeOffset> GetLastSuccessPerJob()
+    {
+        List<JobHistoryEntry> all;
+        lock (_gate)
+        {
+            all = ReadAllUnlocked();
+        }
+
+        return all.Where(e => e.Success)
+            .GroupBy(e => e.JobId)
+            .ToDictionary(g => g.Key, g => g.Max(e => e.StartedUtc));
+    }
+
+    /// <summary>Timestamp of the newest successful entry per (job, database); database keys lowercased.</summary>
+    public Dictionary<(Guid JobId, string Database), DateTimeOffset> GetLastSuccessPerJobDatabase()
+    {
+        List<JobHistoryEntry> all;
+        lock (_gate)
+        {
+            all = ReadAllUnlocked();
+        }
+
+        return all.Where(e => e.Success)
+            .GroupBy(e => (e.JobId, Database: e.Database.ToLowerInvariant()))
+            .ToDictionary(g => g.Key, g => g.Max(e => e.StartedUtc));
+    }
+
     private List<JobHistoryEntry> ReadAllUnlocked()
     {
         var entries = new List<JobHistoryEntry>();

@@ -38,6 +38,12 @@
       </Grid>
     </Border>
 
+    <Border DockPanel.Dock="Top" Background="#FFFDECEA" BorderBrush="#FFE5B4B0" BorderThickness="1"
+            CornerRadius="4" Padding="12,8" Margin="0,10,0,0"
+            Visibility="{Binding HasRpoAlerts, Converter={StaticResource BoolVis}}">
+      <TextBlock Text="{Binding RpoAlertsText}" Foreground="#FF9C2B23" TextWrapping="Wrap" />
+    </Border>
+
     <TextBlock DockPanel.Dock="Top" Text="Backup jobs" FontSize="15" FontWeight="SemiBold" Margin="0,16,0,8" />
 
     <DataGrid ItemsSource="{Binding Jobs}" AutoGenerateColumns="False" IsReadOnly="True"

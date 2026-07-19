@@ -76,6 +76,26 @@ public class HistoryStoreTests
     }
 
     [Fact]
+    public void LastSuccessMaps_IgnoreFailures_AndKeyDatabasesLowercase()
+    {
+        using var dir = new TempDirectory();
+        var store = new HistoryStore(dir.Path);
+        var job = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+
+        var ok = Entry(job, now.AddHours(-3), success: true);
+        ok.Database = "Sales";
+        store.Append(ok);
+        store.Append(Entry(job, now.AddHours(-1), success: false));
+
+        var perJob = store.GetLastSuccessPerJob();
+        Assert.Equal(now.AddHours(-3), perJob[job], TimeSpan.FromSeconds(1));
+
+        var perDb = store.GetLastSuccessPerJobDatabase();
+        Assert.True(perDb.ContainsKey((job, "sales")));
+    }
+
+    [Fact]
     public void CorruptLines_AreSkipped()
     {
         using var dir = new TempDirectory();

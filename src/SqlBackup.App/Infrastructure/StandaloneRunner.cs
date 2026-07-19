@@ -33,6 +33,7 @@ public sealed class StandaloneRunner
             Trigger = RunTrigger.ManualStandalone,
             Settings = config.Service,
             Notifications = config.Notifications,
+            OffsiteDestination = config.FindOffsiteDestination(job.OffsiteDestinationId),
         });
     }
 }

@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Input;
 using SqlBackup.App.Infrastructure;
 using SqlBackup.App.Views;
+using SqlBackup.Core.Backup;
 using SqlBackup.Core.Models;
 
 namespace SqlBackup.App.ViewModels;
@@ -82,7 +83,7 @@ public sealed class JobsViewModel : ObservableObject, IActivatable
                 Name = job.Name,
                 Enabled = job.Enabled,
                 ConnectionName = config.FindConnection(job.ConnectionId)?.Name ?? "(missing connection)",
-                DatabasesText = string.Join(", ", job.Databases),
+                DatabasesText = DatabaseSelector.Describe(job),
                 TypeText = job.Type switch
                 {
                     BackupType.Full => "Full",
@@ -109,7 +110,7 @@ public sealed class JobsViewModel : ObservableObject, IActivatable
 
         var existing = jobId is { } id ? config.FindJob(id) : null;
         var working = existing is null ? new BackupJob() : Cloner.DeepClone(existing);
-        var editor = new JobEditorViewModel(working, config.Connections, _services);
+        var editor = new JobEditorViewModel(working, config.Connections, config.OffsiteDestinations, _services);
         var dialog = new JobEditorWindow(editor) { Owner = Application.Current.MainWindow };
 
         if (dialog.ShowDialog() != true)

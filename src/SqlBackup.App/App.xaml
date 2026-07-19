@@ -22,6 +22,12 @@
     <DataTemplate DataType="{x:Type vm:HistoryViewModel}">
       <views:HistoryView />
     </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:OffsiteViewModel}">
+      <views:OffsiteView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:ReportsViewModel}">
+      <views:ReportsView />
+    </DataTemplate>
     <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
       <views:SettingsView />
     </DataTemplate>
