@@ -20,7 +20,7 @@
               <Button Content="Uninstall" Command="{Binding ServiceCommands.UninstallCommand}" Padding="12,5" />
             </StackPanel>
             <TextBlock Margin="0,8,0,0" Foreground="Gray" FontSize="11" TextWrapping="Wrap"
-                       Text="Installing, starting and stopping the service shows a Windows administrator (UAC) prompt. The service runs as LocalSystem by default; assign a service account in services.msc if backups target network shares." />
+                       Text="Installing, starting and stopping the service shows a Windows administrator (UAC) prompt. Install copies the service files to Program Files\SqlBackup\Service and registers that copy — services must not run from per-user folders. Re-run Install after updating the app to refresh the copy. The service runs as LocalSystem by default; assign a service account in services.msc if backups target network shares." />
             <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
               <TextBlock Text="Data folder:" FontWeight="SemiBold" Margin="0,0,8,0" />
               <TextBlock Text="{Binding DataFolderText}" />

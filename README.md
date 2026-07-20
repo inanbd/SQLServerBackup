@@ -225,6 +225,24 @@ why the same job can succeed in the app and fail in the service. Fix one of:
 The Dashboard shows which account the engine runs as ("running as …"), and
 permission failures in History carry this guidance inline.
 
+**"Service install failed (exit code 1053)" / "did not respond to the start
+request"** — Windows registered the service but the process never launched or
+crashed before reporting in. Check `%ProgramData%\SqlBackup\logs` for a
+`service-*.log`: if none was written, the process never started. Usual causes:
+
+1. The service exe was registered from an incomplete or per-user folder (for
+   example a ClickOnce cache under `AppData\Local\Apps\2.0\...`) that lacks
+   `SqlBackup.Service.dll` and the rest of the payload. The app's *Install
+   service* now copies the full service folder to
+   `Program Files\SqlBackup\Service` and registers that copy, and refuses
+   folders where the payload is missing. Don't distribute this suite via
+   ClickOnce — it is per-user by design; use the Inno Setup installer.
+2. Framework-dependent build without the .NET 8 runtime installed — publish
+   self-contained (`dotnet publish -c Release -r win-x64 --self-contained
+   true`) or install the runtime.
+3. A startup crash — the service log (or Windows Event Viewer → Application)
+   has the reason.
+
 ## Roadmap (not in v1, by design)
 
 Cloud destinations (Azure Blob/S3/SFTP) after local backup, restore workflow UI
