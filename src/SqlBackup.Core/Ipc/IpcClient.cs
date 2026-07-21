@@ -36,7 +36,10 @@ public sealed class IpcClient
             await IpcFraming.WriteLineAsync(pipe, request, cts.Token);
 
             var line = await IpcFraming.ReadLineAsync(pipe, cts.Token)
-                       ?? throw new IpcException("The service closed the connection without responding.");
+                       ?? throw new IpcException(
+                           "The service accepted the connection but closed it without responding. " +
+                           "That usually means a service-side internal error or mismatched app/service builds — " +
+                           "check ProgramData/SqlBackup/logs/service-*.log and reinstall the service from the same build as this app.");
             return JsonSerializer.Deserialize<IpcResponse>(line, JsonDefaults.Compact)
                    ?? throw new IpcException("Empty response from the service.");
         }

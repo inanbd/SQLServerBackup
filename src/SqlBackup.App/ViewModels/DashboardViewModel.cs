@@ -96,13 +96,16 @@ public sealed class DashboardViewModel : ObservableObject, IActivatable
             var installState = _services.ServiceManager.GetState();
 
             ServiceStatusInfo? status = null;
+            string? ipcError = null;
             try
             {
                 status = await _services.Ipc.GetStatusAsync();
             }
-            catch
+            catch (Exception ex)
             {
-                // Service not reachable — fall back to config-only display below.
+                // Service not reachable — fall back to config-only display below,
+                // but keep the reason so the user isn't debugging blind.
+                ipcError = ex.Message;
             }
 
             ServiceReachable = status is not null;
@@ -130,9 +133,14 @@ public sealed class DashboardViewModel : ObservableObject, IActivatable
             else
             {
                 RpoAlertsText = "";
-                ServiceDetailText = installState == ServiceInstallState.NotInstalled
-                    ? "Install the service from Settings, or run jobs manually from Backup Jobs."
-                    : "Start the service to resume scheduled backups.";
+                ServiceDetailText = installState switch
+                {
+                    ServiceInstallState.NotInstalled =>
+                        "Install the service from Settings, or run jobs manually from Backup Jobs.",
+                    ServiceInstallState.Running when ipcError is not null =>
+                        $"IPC error: {Truncate(ipcError, 300)}",
+                    _ => "Start the service to resume scheduled backups.",
+                };
                 UpdateRowsFromConfig();
             }
         }
@@ -222,6 +230,9 @@ public sealed class DashboardViewModel : ObservableObject, IActivatable
         await _services.Ipc.ReloadConfigAsync();
         await RefreshAsync();
     }
+
+    private static string Truncate(string text, int max) =>
+        text.Length <= max ? text : text[..max] + "…";
 
     private static string FormatUptime(TimeSpan uptime) =>
         uptime.TotalDays >= 1 ? $"{(int)uptime.TotalDays}d {uptime.Hours}h"

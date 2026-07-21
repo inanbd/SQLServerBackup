@@ -243,6 +243,24 @@ crashed before reporting in. Check `%ProgramData%\SqlBackup\logs` for a
 3. A startup crash — the service log (or Windows Event Viewer → Application)
    has the reason.
 
+**"The service accepted the connection but closed it without responding" /
+"Service running, IPC unavailable"** — the service process is alive but fails
+between reading a request and writing the reply. Check
+`%ProgramData%\SqlBackup\logs\service-*.log` for `IPC request read failed` /
+`IPC response write failed` lines — the dashboard also shows the last IPC
+error. Usual causes:
+
+1. **Stale service build**: the registered service exe (see `sc qc
+   SqlBackupService` → BINARY_PATH_NAME) is from an older install location or
+   older version than the app. Reinstall via *Settings → Install service* so
+   the current build is copied to `Program Files\SqlBackup\Service`.
+2. **Trimmed publish**: publishing the service with IL trimming breaks the
+   reflection-based JSON serializers (the service starts but cannot answer
+   anything). The project now sets `PublishTrimmed=false` to prevent this —
+   don't re-enable it in a publish profile.
+3. Binaries replaced underneath a running service — always stop the service
+   before republishing over its folder, then start it again.
+
 ## Roadmap (not in v1, by design)
 
 Cloud destinations (Azure Blob/S3/SFTP) after local backup, restore workflow UI

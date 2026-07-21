@@ -84,9 +84,15 @@ public sealed class IpcServer : BackgroundService
             security.AddAccessRule(new PipeAccessRule(
                 new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null),
                 PipeAccessRights.FullControl, AccessControlType.Allow));
+            // A duplex .NET pipe client opens with GENERIC_READ|GENERIC_WRITE, which maps to
+            // ReadWrite + READ_CONTROL + SYNCHRONIZE + (for pipes) CreateNewInstance. Granting
+            // plain ReadWrite silently locks out non-elevated clients (UAC-filtered tokens
+            // don't match the Administrators ACE).
             security.AddAccessRule(new PipeAccessRule(
                 new SecurityIdentifier(WellKnownSidType.AuthenticatedUserSid, null),
-                PipeAccessRights.ReadWrite, AccessControlType.Allow));
+                PipeAccessRights.ReadWrite | PipeAccessRights.CreateNewInstance |
+                PipeAccessRights.ReadPermissions | PipeAccessRights.Synchronize,
+                AccessControlType.Allow));
 
             return NamedPipeServerStreamAcl.Create(
                 IpcProtocol.PipeName, PipeDirection.InOut, maxInstances,
@@ -101,57 +107,100 @@ public sealed class IpcServer : BackgroundService
 
     private async Task HandleClientAsync(NamedPipeServerStream pipe, CancellationToken stoppingToken)
     {
+        // Contract: never close the connection without writing SOMETHING. A silent
+        // close surfaces in the app as an anonymous "closed without responding" —
+        // even internal errors must travel back as a readable error line.
         await using (pipe)
         {
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
             cts.CancelAfter(TimeSpan.FromSeconds(15));
+
+            string? line;
             try
             {
-                var line = await IpcFraming.ReadLineAsync(pipe, cts.Token);
-                if (line is null)
-                    return;
-
-                IpcResponse response;
-                try
-                {
-                    var request = JsonSerializer.Deserialize<IpcRequest>(line, JsonDefaults.Compact);
-                    response = request is null ? IpcResponse.Fail("Empty request.") : Dispatch(request);
-                }
-                catch (JsonException ex)
-                {
-                    response = IpcResponse.Fail("Malformed request: " + ex.Message);
-                }
-                catch (Exception ex)
-                {
-                    _log.LogError(ex, "IPC request handling failed");
-                    response = IpcResponse.Fail(ex.Message);
-                }
-
-                await IpcFraming.WriteLineAsync(pipe, JsonSerializer.Serialize(response, JsonDefaults.Compact), cts.Token);
-
-                if (OperatingSystem.IsWindows())
-                {
-                    try
-                    {
-                        pipe.WaitForPipeDrain();
-                    }
-                    catch
-                    {
-                        // Client may already have disconnected.
-                    }
-                }
+                line = await IpcFraming.ReadLineAsync(pipe, cts.Token);
             }
             catch (OperationCanceledException)
             {
+                return; // shutdown or a client that never sent a request
             }
             catch (IOException)
             {
-                // Client went away mid-conversation.
+                return; // client went away mid-request
             }
             catch (Exception ex)
             {
-                _log.LogWarning(ex, "IPC connection failed");
+                _log.LogError(ex, "IPC request read failed");
+                await TryWriteFallbackErrorAsync(pipe, "The service could not read the request: " + ex.Message);
+                return;
             }
+            if (line is null)
+                return;
+
+            IpcResponse response;
+            try
+            {
+                var request = JsonSerializer.Deserialize<IpcRequest>(line, JsonDefaults.Compact);
+                response = request is null ? IpcResponse.Fail("Empty request.") : Dispatch(request);
+            }
+            catch (JsonException ex)
+            {
+                response = IpcResponse.Fail("Malformed request: " + ex.Message);
+            }
+            catch (Exception ex)
+            {
+                _log.LogError(ex, "IPC request handling failed");
+                response = IpcResponse.Fail(ex.Message);
+            }
+
+            try
+            {
+                await IpcFraming.WriteLineAsync(pipe, JsonSerializer.Serialize(response, JsonDefaults.Compact), cts.Token);
+                DrainBestEffort(pipe);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // Serialization/write failure (e.g. a trimmed publish breaking reflection
+                // serializers) — send a hand-built error line so the client learns why.
+                _log.LogError(ex, "IPC response write failed");
+                await TryWriteFallbackErrorAsync(pipe, "The service failed to send its response: " + ex.Message);
+            }
+        }
+    }
+
+    /// <summary>Minimal literal JSON error (no serializer involved) for when everything else fails.</summary>
+    internal static string BuildFallbackErrorLine(string message)
+    {
+        var escaped = message
+            .Replace("\\", "\\\\").Replace("\"", "\\\"")
+            .Replace("\r", " ").Replace("\n", " ");
+        return $"{{\"ok\":false,\"error\":\"{escaped} — see the service log in ProgramData/SqlBackup/logs.\"}}";
+    }
+
+    private async Task TryWriteFallbackErrorAsync(NamedPipeServerStream pipe, string message)
+    {
+        try
+        {
+            await IpcFraming.WriteLineAsync(pipe, BuildFallbackErrorLine(message), CancellationToken.None);
+            DrainBestEffort(pipe);
+        }
+        catch
+        {
+            // The pipe itself is broken; nothing more we can do.
+        }
+    }
+
+    private static void DrainBestEffort(NamedPipeServerStream pipe)
+    {
+        if (!OperatingSystem.IsWindows())
+            return;
+        try
+        {
+            pipe.WaitForPipeDrain();
+        }
+        catch
+        {
+            // Client may already have disconnected.
         }
     }
 

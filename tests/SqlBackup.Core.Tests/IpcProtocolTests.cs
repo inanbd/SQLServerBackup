@@ -62,6 +62,18 @@ public class IpcProtocolTests
     }
 
     [Fact]
+    public void FallbackErrorLine_IsParseableAsIpcResponse_EvenWithHostileCharacters()
+    {
+        var line = SqlBackup.Service.IpcServer.BuildFallbackErrorLine("boom \"quoted\" \\path\\ and\nnewline");
+
+        var parsed = JsonSerializer.Deserialize<IpcResponse>(line, JsonDefaults.Compact)!;
+
+        Assert.False(parsed.Ok);
+        Assert.Contains("boom \"quoted\"", parsed.Error);
+        Assert.Contains("service log", parsed.Error);
+    }
+
+    [Fact]
     public void HistoryEntries_SerializeEnumsAsStrings()
     {
         var entry = new JobHistoryEntry { Type = BackupType.TransactionLog, Trigger = RunTrigger.ManualStandalone };

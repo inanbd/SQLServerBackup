@@ -5,7 +5,15 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>SqlBackup.Service</RootNamespace>
     <AssemblyName>SqlBackup.Service</AssemblyName>
+    <!-- Hard-block IL trimming: config, history and IPC all use reflection-based
+         System.Text.Json; a publish profile with trimming enabled produces a service
+         that starts but cannot answer any request. -->
+    <PublishTrimmed>false</PublishTrimmed>
   </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="SqlBackup.Core.Tests" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
