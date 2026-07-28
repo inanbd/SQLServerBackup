@@ -21,6 +21,7 @@ public sealed class JobRow
     public string TypeText { get; init; } = "";
     public string ScheduleText { get; init; } = "";
     public string DestinationFolder { get; init; } = "";
+    public string StorageText { get; init; } = "";
     public string RetentionText { get; init; } = "";
 }
 
@@ -93,6 +94,7 @@ public sealed class JobsViewModel : ObservableObject, IActivatable
                 },
                 ScheduleText = job.Schedule.Describe(),
                 DestinationFolder = job.DestinationFolder,
+                StorageText = job.DescribeStorage(config.FindOffsiteDestination(job.OffsiteDestinationId)?.Name),
                 RetentionText = job.Retention.Describe(),
             });
         }

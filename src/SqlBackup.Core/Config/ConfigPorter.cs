@@ -30,6 +30,7 @@ public static class ConfigPorter
             destination.ProtectedAzureSasToken = null;
             destination.ProtectedS3SecretKey = null;
             destination.ProtectedSftpPassword = null;
+            destination.ProtectedSmbPassword = null;
         }
         return clone;
     }
@@ -59,6 +60,9 @@ public static class ConfigPorter
                 OffsiteKind.AzureBlob => string.IsNullOrEmpty(destination.ProtectedAzureSasToken),
                 OffsiteKind.S3 => string.IsNullOrEmpty(destination.ProtectedS3SecretKey),
                 OffsiteKind.Sftp => string.IsNullOrEmpty(destination.ProtectedSftpPassword),
+                // A share used under the engine's own identity has no secret to restore.
+                OffsiteKind.SmbShare => !string.IsNullOrEmpty(destination.SmbUsername) &&
+                                        string.IsNullOrEmpty(destination.ProtectedSmbPassword),
                 _ => false,
             };
             if (missing)

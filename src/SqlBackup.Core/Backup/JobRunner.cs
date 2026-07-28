@@ -148,7 +148,7 @@ public sealed class JobRunner
 
     private OffsiteHandle? CreateOffsiteUploader(JobRunContext ctx, JobRunResult result)
     {
-        if (ctx.OffsiteDestination is not { } destination)
+        if (ctx.Job.StorageMode == BackupStorageMode.LocalOnly || ctx.OffsiteDestination is not { } destination)
             return null;
         try
         {
@@ -268,13 +268,21 @@ public sealed class JobRunner
             if (File.Exists(filePath))
             {
                 entry.FileSizeBytes = new FileInfo(filePath).Length;
-                var retention = RetentionEnforcer.Apply(folder, database, effectiveType, job.Retention, now);
-                if (retention.DeletedFiles.Count > 0)
-                    notes.Add($"Retention: deleted {retention.DeletedFiles.Count} old backup file(s).");
-                if (retention.KeptForChain.Count > 0)
-                    notes.Add($"Retention: kept {retention.KeptForChain.Count} full backup(s) still needed by newer differential/log backups.");
-                foreach (var error in retention.Errors)
-                    notes.Add($"Retention error: {error}");
+
+                // Off-site-only treats the destination folder as staging; with no usable
+                // off-site target it degrades to keeping the local copy, never to none.
+                var keepsLocal = BackupJob.KeepsLocalCopy(job.StorageMode, offsite is not null);
+
+                if (keepsLocal)
+                {
+                    var retention = RetentionEnforcer.Apply(folder, database, effectiveType, job.Retention, now);
+                    if (retention.DeletedFiles.Count > 0)
+                        notes.Add($"Retention: deleted {retention.DeletedFiles.Count} old backup file(s).");
+                    if (retention.KeptForChain.Count > 0)
+                        notes.Add($"Retention: kept {retention.KeptForChain.Count} full backup(s) still needed by newer differential/log backups.");
+                    foreach (var error in retention.Errors)
+                        notes.Add($"Retention error: {error}");
+                }
 
                 if (offsite is not null)
                 {
@@ -283,6 +291,24 @@ public sealed class JobRunner
                         job.OffsiteRetention, ctx.OffsiteDestination?.Prefix, now, ct);
                     entry.OffsiteSuccess = offsiteResult.Success;
                     notes.AddRange(offsiteResult.Notes);
+
+                    if (!keepsLocal && offsiteResult.Success)
+                    {
+                        try
+                        {
+                            File.Delete(filePath);
+                            notes.Add("Off-site only: the local staging copy was deleted after the upload succeeded.");
+                        }
+                        catch (Exception ex)
+                        {
+                            notes.Add($"Off-site only: the local staging copy could not be deleted: {ex.Message}");
+                        }
+                    }
+                    else if (!keepsLocal)
+                    {
+                        notes.Add("Off-site only: the local copy was KEPT because the upload failed — " +
+                                  "it is currently the only copy of this backup.");
+                    }
                 }
             }
             else

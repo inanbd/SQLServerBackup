@@ -47,6 +47,23 @@ public enum OffsiteKind
     AzureBlob,
     S3,
     Sftp,
+    /// <summary>Windows file share (UNC path), optionally with its own credentials.</summary>
+    SmbShare,
+}
+
+public enum BackupStorageMode
+{
+    /// <summary>Keep the backup in the job's destination folder and also copy it off-site.</summary>
+    LocalAndOffsite,
+
+    /// <summary>Keep the backup only in the job's destination folder (no off-site copy).</summary>
+    LocalOnly,
+
+    /// <summary>
+    /// Treat the destination folder as staging: after a successful off-site upload the
+    /// local file is deleted. A failed upload always keeps the local file.
+    /// </summary>
+    OffsiteOnly,
 }
 
 public enum RunTrigger

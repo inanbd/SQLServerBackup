@@ -31,6 +31,13 @@ public sealed class OffsiteDestination
     public string? ProtectedS3SecretKey { get; set; }
     public bool S3ForcePathStyle { get; set; }
 
+    // --- SmbShare ---
+    /// <summary>UNC path, e.g. \\nas\backups\sql (a local path also works).</summary>
+    public string? SmbPath { get; set; }
+    /// <summary>Optional user for the share; empty means "use the identity the backup engine runs as".</summary>
+    public string? SmbUsername { get; set; }
+    public string? ProtectedSmbPassword { get; set; }
+
     // --- Sftp ---
     public string? SftpHost { get; set; }
     public int SftpPort { get; set; } = 22;
@@ -44,6 +51,7 @@ public sealed class OffsiteDestination
         OffsiteKind.AzureBlob => AzureContainerUrl ?? "",
         OffsiteKind.S3 => S3ServiceUrl is { Length: > 0 } url ? $"{url}/{S3Bucket}" : $"s3://{S3Bucket} ({S3Region})",
         OffsiteKind.Sftp => $"sftp://{SftpUsername}@{SftpHost}:{SftpPort}{SftpRemotePath}",
+        OffsiteKind.SmbShare => SmbPath ?? "",
         _ => "",
     };
 }

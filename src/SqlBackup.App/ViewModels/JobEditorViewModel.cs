@@ -52,6 +52,7 @@ public sealed class JobEditorViewModel : ObservableObject
     private ScheduleKind _scheduleKind;
     private DatabaseSelectionMode _selectionMode;
     private OffsiteChoice _selectedOffsite;
+    private BackupStorageMode _storageMode;
     private string _databasesStatusText = "Click 'Load databases' to list what's on the server.";
     private string _schedulePreviewText = "";
     private string _destinationStatusText = "";
@@ -69,6 +70,7 @@ public sealed class JobEditorViewModel : ObservableObject
         _selectedConnection = connections.FirstOrDefault(c => c.Id == working.ConnectionId) ?? connections.FirstOrDefault();
         _scheduleKind = working.Schedule.Kind;
         _selectionMode = working.SelectionMode;
+        _storageMode = working.StorageMode;
 
         IntervalMinutesText = working.Schedule.IntervalMinutes.ToString(CultureInfo.InvariantCulture);
         TimeOfDayText = working.Schedule.TimeOfDay.ToString("HH':'mm");
@@ -113,6 +115,7 @@ public sealed class JobEditorViewModel : ObservableObject
     public IReadOnlyList<ScheduleKind> ScheduleKinds { get; } = Enum.GetValues<ScheduleKind>();
     public IReadOnlyList<RetentionMode> RetentionModes { get; } = Enum.GetValues<RetentionMode>();
     public IReadOnlyList<DatabaseSelectionMode> SelectionModes { get; } = Enum.GetValues<DatabaseSelectionMode>();
+    public IReadOnlyList<BackupStorageMode> StorageModes { get; } = Enum.GetValues<BackupStorageMode>();
     public List<OffsiteChoice> OffsiteChoices { get; }
 
     public ICommand LoadDatabasesCommand { get; }
@@ -173,11 +176,37 @@ public sealed class JobEditorViewModel : ObservableObject
         set
         {
             if (Set(ref _selectedOffsite, value))
+            {
                 OnPropertyChanged(nameof(HasOffsite));
+                OnPropertyChanged(nameof(StorageModeText));
+            }
         }
     }
 
     public bool HasOffsite => SelectedOffsite.Id is not null;
+
+    public BackupStorageMode StorageMode
+    {
+        get => _storageMode;
+        set
+        {
+            if (Set(ref _storageMode, value))
+                OnPropertyChanged(nameof(StorageModeText));
+        }
+    }
+
+    public string StorageModeText => !HasOffsite
+        ? "Backups are kept in the destination folder above. Pick an off-site destination to also copy them elsewhere."
+        : StorageMode switch
+        {
+            BackupStorageMode.LocalOnly =>
+                "Only the destination folder is used — the off-site destination above is ignored until you change this.",
+            BackupStorageMode.OffsiteOnly =>
+                "The destination folder is only staging: after a successful upload the local file is deleted. " +
+                "If an upload fails the local file is kept, so a run never ends with zero copies.",
+            _ => "Both copies are kept: the destination folder (with its retention) and the off-site destination " +
+                 "(with its own retention).",
+        };
 
     public RetentionMode OffsiteRetentionMode
     {
@@ -434,6 +463,12 @@ public sealed class JobEditorViewModel : ObservableObject
             return false;
         }
 
+        if (StorageMode == BackupStorageMode.OffsiteOnly && !HasOffsite)
+        {
+            error = "Off-site only needs an off-site destination — pick one, or switch the storage mode.";
+            return false;
+        }
+
         if (HasOffsite)
         {
             if (OffsiteRetentionMode == RetentionMode.KeepLastN)
@@ -464,6 +499,7 @@ public sealed class JobEditorViewModel : ObservableObject
         Working.Retention.Mode = RetentionMode;
         Working.RpoHours = rpoHours;
         Working.OffsiteDestinationId = SelectedOffsite.Id;
+        Working.StorageMode = StorageMode;
         return true;
     }
 }

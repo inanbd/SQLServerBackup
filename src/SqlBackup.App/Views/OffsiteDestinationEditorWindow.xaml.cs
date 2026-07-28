@@ -1,4 +1,5 @@
 using System.Windows;
+using Microsoft.Win32;
 using SqlBackup.App.ViewModels;
 
 namespace SqlBackup.App.Views;
@@ -16,6 +17,13 @@ public partial class OffsiteDestinationEditorWindow : Window
 
     private void OnSecretChanged(object sender, RoutedEventArgs e) =>
         _vm.SetSecret(SecretInput.Password);
+
+    private void OnBrowseShare(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFolderDialog { Title = "Select the share folder" };
+        if (dialog.ShowDialog(this) == true)
+            _vm.SmbPath = dialog.FolderName;
+    }
 
     private void OnSave(object sender, RoutedEventArgs e)
     {

@@ -91,4 +91,25 @@ public sealed class BackupJob
 
     /// <summary>Retention applied to the off-site copies (independent of local retention).</summary>
     public RetentionPolicy OffsiteRetention { get; set; } = new() { Mode = RetentionMode.KeepAll };
+
+    /// <summary>
+    /// Where finished backups are kept. Defaults to keeping both copies, which is also
+    /// what configurations written before this setting existed expect.
+    /// </summary>
+    public BackupStorageMode StorageMode { get; set; } = BackupStorageMode.LocalAndOffsite;
+
+    /// <summary>
+    /// Whether the local file survives the run. Off-site-only still keeps it when there
+    /// is no usable off-site destination — the tool never leaves a run with zero copies.
+    /// </summary>
+    public static bool KeepsLocalCopy(BackupStorageMode mode, bool offsiteAvailable) =>
+        mode != BackupStorageMode.OffsiteOnly || !offsiteAvailable;
+
+    public string DescribeStorage(string? offsiteName) => StorageMode switch
+    {
+        _ when offsiteName is null => "Local only",
+        BackupStorageMode.LocalOnly => "Local only",
+        BackupStorageMode.OffsiteOnly => $"Off-site only ({offsiteName})",
+        _ => $"Local + off-site ({offsiteName})",
+    };
 }

@@ -172,12 +172,19 @@
           </StackPanel>
         </GroupBox>
 
-        <GroupBox Header="Off-site copy" Padding="10" Margin="0,10,0,0">
+        <GroupBox Header="Storage &amp; off-site copy" Padding="10" Margin="0,10,0,0">
           <StackPanel>
             <StackPanel Orientation="Horizontal">
               <TextBlock Text="Destination" VerticalAlignment="Center" Margin="0,0,8,0" />
               <ComboBox Width="260" ItemsSource="{Binding OffsiteChoices}" SelectedItem="{Binding SelectedOffsite}" />
             </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+              <TextBlock Text="Keep backups" VerticalAlignment="Center" Margin="0,0,8,0" />
+              <ComboBox Width="180" ItemsSource="{Binding StorageModes}" SelectedItem="{Binding StorageMode}"
+                        IsEnabled="{Binding HasOffsite}" />
+            </StackPanel>
+            <TextBlock Text="{Binding StorageModeText}" Foreground="#FF57606A" FontSize="11"
+                       TextWrapping="Wrap" Margin="0,6,0,0" />
             <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
                         Visibility="{Binding HasOffsite, Converter={StaticResource BoolVis}}">
               <TextBlock Text="Off-site retention" VerticalAlignment="Center" Margin="0,0,8,0" />
@@ -195,7 +202,7 @@
               </StackPanel>
             </StackPanel>
             <TextBlock Foreground="Gray" FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
-                       Text="After a successful local backup the file is uploaded (with retries). An upload failure marks the run 'off-site failed' and triggers alerts, but the local backup still counts. Manage destinations on the Off-site page." />
+                       Text="SQL Server always writes the backup to the destination folder first; the file is then uploaded (with retries) to the off-site destination. An upload failure marks the run 'off-site failed' and triggers alerts, but the backup itself still counts. Manage destinations — file share (SMB), Azure Blob, S3 or SFTP — on the Off-site page." />
           </StackPanel>
         </GroupBox>
 

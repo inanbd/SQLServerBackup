@@ -26,6 +26,16 @@ public static class OffsiteProviderFactory
                     destination.S3ServiceUrl,
                     destination.S3ForcePathStyle);
 
+            case OffsiteKind.SmbShare:
+                return new SmbOffsiteProvider(
+                    Require(destination.SmbPath, destination, "share path"),
+                    destination.SmbUsername,
+                    // Credentials are optional: without them the share is accessed as
+                    // the identity the backup engine runs as.
+                    destination.ProtectedSmbPassword is { Length: > 0 } smbSecret
+                        ? protector.Unprotect(smbSecret)
+                        : null);
+
             case OffsiteKind.Sftp:
                 return new SftpOffsiteProvider(
                     Require(destination.SftpHost, destination, "host"),

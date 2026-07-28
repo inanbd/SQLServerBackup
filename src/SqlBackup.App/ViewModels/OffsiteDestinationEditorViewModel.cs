@@ -48,6 +48,7 @@ public sealed class OffsiteDestinationEditorViewModel : ObservableObject
                 Working.Kind = value;
                 OnPropertyChanged(nameof(SecretLabel));
                 OnPropertyChanged(nameof(SecretHint));
+                OnPropertyChanged(nameof(SecretRequired));
             }
         }
     }
@@ -96,6 +97,25 @@ public sealed class OffsiteDestinationEditorViewModel : ObservableObject
         set { Working.S3ForcePathStyle = value; OnPropertyChanged(); }
     }
 
+    // SMB share
+    public string SmbPath
+    {
+        get => Working.SmbPath ?? "";
+        set { Working.SmbPath = value; OnPropertyChanged(); }
+    }
+
+    public string SmbUsername
+    {
+        get => Working.SmbUsername ?? "";
+        set
+        {
+            Working.SmbUsername = value.Length == 0 ? null : value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(SecretRequired));
+            OnPropertyChanged(nameof(SecretHint));
+        }
+    }
+
     // SFTP
     public string SftpHost
     {
@@ -128,10 +148,17 @@ public sealed class OffsiteDestinationEditorViewModel : ObservableObject
     {
         OffsiteKind.AzureBlob => Working.ProtectedAzureSasToken is { Length: > 0 },
         OffsiteKind.S3 => Working.ProtectedS3SecretKey is { Length: > 0 },
+        OffsiteKind.SmbShare => Working.ProtectedSmbPassword is { Length: > 0 },
         _ => Working.ProtectedSftpPassword is { Length: > 0 },
     };
 
-    public string SecretHint => HasStoredSecret ? "Leave blank to keep the stored secret." : "";
+    /// <summary>A share accessed as the backup engine's own identity needs no secret.</summary>
+    public bool SecretRequired => Kind != OffsiteKind.SmbShare || !string.IsNullOrWhiteSpace(Working.SmbUsername);
+
+    public string SecretHint =>
+        HasStoredSecret ? "Leave blank to keep the stored secret."
+        : !SecretRequired ? "Not needed: the share is accessed as the account the backup engine runs as."
+        : "";
 
     public string TestResultText
     {
@@ -167,6 +194,9 @@ public sealed class OffsiteDestinationEditorViewModel : ObservableObject
             case OffsiteKind.Sftp when string.IsNullOrWhiteSpace(SftpHost) || string.IsNullOrWhiteSpace(SftpUsername):
                 error = "Enter the SFTP host and username.";
                 return false;
+            case OffsiteKind.SmbShare when string.IsNullOrWhiteSpace(SmbPath):
+                error = @"Enter the share path (e.g. \\nas\backups\sql).";
+                return false;
         }
 
         if (Kind == OffsiteKind.Sftp)
@@ -179,18 +209,22 @@ public sealed class OffsiteDestinationEditorViewModel : ObservableObject
             Working.SftpPort = port;
         }
 
-        if (_newSecret is null && !HasStoredSecret)
+        if (SecretRequired && _newSecret is null && !HasStoredSecret)
         {
             error = $"Enter the {SecretLabel.ToLowerInvariant()}.";
             return false;
         }
         if (_newSecret is not null)
             StoreSecret(_protector.Protect(_newSecret));
+        else if (!SecretRequired)
+            StoreSecretRaw(null); // share used as the engine identity: drop any stale secret
 
         return true;
     }
 
-    private void StoreSecret(string protectedValue)
+    private void StoreSecret(string protectedValue) => StoreSecretRaw(protectedValue);
+
+    private void StoreSecretRaw(string? protectedValue)
     {
         switch (Kind)
         {
@@ -199,6 +233,9 @@ public sealed class OffsiteDestinationEditorViewModel : ObservableObject
                 break;
             case OffsiteKind.S3:
                 Working.ProtectedS3SecretKey = protectedValue;
+                break;
+            case OffsiteKind.SmbShare:
+                Working.ProtectedSmbPassword = protectedValue;
                 break;
             default:
                 Working.ProtectedSftpPassword = protectedValue;
@@ -222,6 +259,7 @@ public sealed class OffsiteDestinationEditorViewModel : ObservableObject
                 {
                     case OffsiteKind.AzureBlob: probe.ProtectedAzureSasToken = protectedValue; break;
                     case OffsiteKind.S3: probe.ProtectedS3SecretKey = protectedValue; break;
+                    case OffsiteKind.SmbShare: probe.ProtectedSmbPassword = protectedValue; break;
                     default: probe.ProtectedSftpPassword = protectedValue; break;
                 }
             }

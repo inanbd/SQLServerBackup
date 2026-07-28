@@ -71,7 +71,11 @@ JSON conventions: camelCase property names, enums as strings, timestamps as ISO-
       "catchUpMissedRun": false,              // run once at startup if an occurrence was missed
       "rpoHours": 26,                         // alert when no successful backup for N hours; 0 = off
       "offsiteDestinationId": null,           // references offsiteDestinations[].id; null = no off-site copy
-      "offsiteRetention": { "mode": "KeepAll", "keepLast": 14, "maxAgeDays": 30 }
+      "offsiteRetention": { "mode": "KeepAll", "keepLast": 14, "maxAgeDays": 30 },
+      // "LocalAndOffsite" (default: keep both) | "LocalOnly" | "OffsiteOnly"
+      // OffsiteOnly deletes the local file after a successful upload; a failed
+      // upload always keeps it, and so does a missing/unusable destination.
+      "storageMode": "LocalAndOffsite"
     }
   ],
 
@@ -79,8 +83,10 @@ JSON conventions: camelCase property names, enums as strings, timestamps as ISO-
     {
       "id": "9a7e...",
       "name": "NAS",
-      "kind": "Sftp",                         // "AzureBlob" | "S3" | "Sftp"
+      "kind": "Sftp",                         // "SmbShare" | "AzureBlob" | "S3" | "Sftp"
       "prefix": "server01",                   // optional key prefix for all uploads
+      // SmbShare:  smbPath (\\server\share\folder), optional smbUsername + protectedSmbPassword
+      //            (no credentials = accessed as the account the backup engine runs as)
       // AzureBlob: azureContainerUrl + protectedAzureSasToken (SAS needs create/write/list/delete)
       // S3:        s3Bucket, s3Region or s3ServiceUrl (+ s3ForcePathStyle), s3AccessKeyId, protectedS3SecretKey
       // Sftp:      sftpHost, sftpPort, sftpUsername, protectedSftpPassword, sftpRemotePath

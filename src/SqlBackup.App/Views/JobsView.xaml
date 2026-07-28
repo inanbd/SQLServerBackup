@@ -39,6 +39,7 @@
         <DataGridTextColumn Header="Type" Binding="{Binding TypeText}" Width="Auto" />
         <DataGridTextColumn Header="Schedule" Binding="{Binding ScheduleText}" Width="1.4*" />
         <DataGridTextColumn Header="Destination" Binding="{Binding DestinationFolder}" Width="1.6*" />
+        <DataGridTextColumn Header="Storage" Binding="{Binding StorageText}" Width="1.2*" />
         <DataGridTextColumn Header="Retention" Binding="{Binding RetentionText}" Width="*" />
       </DataGrid.Columns>
     </DataGrid>

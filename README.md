@@ -74,11 +74,15 @@ flowchart LR
   backup for N hours" — fires even when the job never runs at all (disabled
   job, stopped scheduler, broken cron), shows on the dashboard, and re-alerts
   daily while unresolved.
-* **Off-site copies**: after a successful local backup, upload to **Azure Blob
-  Storage, Amazon S3 (or any S3-compatible endpoint), or SFTP** with retries
-  and an independent, also chain-aware retention policy on the remote side. An
-  upload failure marks the run "off-site failed" and alerts, without
-  invalidating the local backup.
+* **Off-site copies**: after a successful local backup, copy it to a **Windows
+  file share (SMB/UNC), Azure Blob Storage, Amazon S3 (or any S3-compatible
+  endpoint), or SFTP** with retries and an independent, also chain-aware
+  retention policy on the remote side. An upload failure marks the run
+  "off-site failed" and alerts, without invalidating the local backup.
+* **Storage mode per job** — *local only*, *local + off-site* (both copies
+  kept, each with its own retention), or *off-site only* (the destination
+  folder is staging; the local file is deleted once the upload succeeds). A
+  failed upload always keeps the local file, so a run never ends with no copy.
 * **Reports**: 30-day success rate, run/failure counts, current full-backup
   footprint, bytes written, and per-database size trends (14-day mini chart),
   duration stats and growth percentage.
