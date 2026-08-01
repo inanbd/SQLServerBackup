@@ -49,6 +49,23 @@ public enum OffsiteKind
     Sftp,
     /// <summary>Windows file share (UNC path), optionally with its own credentials.</summary>
     SmbShare,
+    GoogleDrive,
+}
+
+public enum GoogleDriveAuthMode
+{
+    /// <summary>
+    /// A Google Cloud service account key. Fully unattended, but service accounts have
+    /// no Drive storage of their own — the target folder must live in a Shared Drive
+    /// (Google Workspace) the service account is a member of.
+    /// </summary>
+    ServiceAccount,
+
+    /// <summary>
+    /// A user account authorized once interactively in the desktop app; the service
+    /// then uses the stored refresh token. Works with ordinary (My Drive) accounts.
+    /// </summary>
+    OAuthUser,
 }
 
 public enum BackupStorageMode

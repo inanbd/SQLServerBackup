@@ -18,6 +18,20 @@ public partial class OffsiteDestinationEditorWindow : Window
     private void OnSecretChanged(object sender, RoutedEventArgs e) =>
         _vm.SetSecret(SecretInput.Password);
 
+    private void OnGoogleClientSecretChanged(object sender, RoutedEventArgs e) =>
+        _vm.SetGoogleClientSecret(GoogleClientSecretInput.Password);
+
+    private void OnLoadServiceAccountKey(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Select the Google service account key",
+            Filter = "Service account key (*.json)|*.json|All files (*.*)|*.*",
+        };
+        if (dialog.ShowDialog(this) == true)
+            _vm.LoadServiceAccountKey(dialog.FileName);
+    }
+
     private void OnBrowseShare(object sender, RoutedEventArgs e)
     {
         var dialog = new OpenFolderDialog { Title = "Select the share folder" };

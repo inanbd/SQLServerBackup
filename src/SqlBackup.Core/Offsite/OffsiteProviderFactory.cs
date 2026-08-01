@@ -26,6 +26,15 @@ public static class OffsiteProviderFactory
                     destination.S3ServiceUrl,
                     destination.S3ForcePathStyle);
 
+            case OffsiteKind.GoogleDrive:
+            {
+                // Validate plain configuration before touching credentials, so a missing
+                // folder ID is reported as such instead of behind a credential error.
+                var folderId = Require(destination.GoogleFolderId, destination, "target folder ID");
+                return new GoogleDriveOffsiteProvider(
+                    GoogleDriveCredentials.Create(destination, protector), folderId, destination.DescribeTarget());
+            }
+
             case OffsiteKind.SmbShare:
                 return new SmbOffsiteProvider(
                     Require(destination.SmbPath, destination, "share path"),

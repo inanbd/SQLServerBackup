@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using System.IO;
 using SqlBackup.App.Infrastructure;
 using SqlBackup.Core.Models;
 using SqlBackup.Core.Offsite;
@@ -14,8 +15,11 @@ public sealed class OffsiteDestinationEditorViewModel : ObservableObject
 {
     private readonly ISecretProtector _protector;
     private string? _newSecret;
+    private string? _newGoogleClientSecret;
     private OffsiteKind _kind;
+    private GoogleDriveAuthMode _googleAuthMode;
     private string _testResultText = "";
+    private string _googleAuthStatusText = "";
 
     public OffsiteDestinationEditorViewModel(OffsiteDestination working, ISecretProtector protector, bool isNew)
     {
@@ -23,14 +27,19 @@ public sealed class OffsiteDestinationEditorViewModel : ObservableObject
         _protector = protector;
         IsNew = isNew;
         _kind = working.Kind;
+        _googleAuthMode = working.GoogleAuthMode;
         SftpPortText = working.SftpPort.ToString(CultureInfo.InvariantCulture);
         TestCommand = new AsyncRelayCommand(_ => TestAsync());
+        AuthorizeGoogleCommand = new AsyncRelayCommand(_ => AuthorizeGoogleAsync());
+        _googleAuthStatusText = DescribeStoredGoogleAuth();
     }
 
     public OffsiteDestination Working { get; }
     public bool IsNew { get; }
     public IReadOnlyList<OffsiteKind> Kinds { get; } = Enum.GetValues<OffsiteKind>();
+    public IReadOnlyList<GoogleDriveAuthMode> GoogleAuthModes { get; } = Enum.GetValues<GoogleDriveAuthMode>();
     public ICommand TestCommand { get; }
+    public ICommand AuthorizeGoogleCommand { get; }
 
     public string Name
     {
@@ -49,6 +58,7 @@ public sealed class OffsiteDestinationEditorViewModel : ObservableObject
                 OnPropertyChanged(nameof(SecretLabel));
                 OnPropertyChanged(nameof(SecretHint));
                 OnPropertyChanged(nameof(SecretRequired));
+                OnPropertyChanged(nameof(ShowSecretBox));
             }
         }
     }
@@ -95,6 +105,116 @@ public sealed class OffsiteDestinationEditorViewModel : ObservableObject
     {
         get => Working.S3ForcePathStyle;
         set { Working.S3ForcePathStyle = value; OnPropertyChanged(); }
+    }
+
+    // Google Drive
+    public GoogleDriveAuthMode GoogleAuthMode
+    {
+        get => _googleAuthMode;
+        set
+        {
+            if (Set(ref _googleAuthMode, value))
+            {
+                Working.GoogleAuthMode = value;
+                OnPropertyChanged(nameof(IsGoogleServiceAccount));
+                OnPropertyChanged(nameof(IsGoogleOAuth));
+                GoogleAuthStatusText = DescribeStoredGoogleAuth();
+            }
+        }
+    }
+
+    public bool IsGoogleServiceAccount => GoogleAuthMode == GoogleDriveAuthMode.ServiceAccount;
+    public bool IsGoogleOAuth => GoogleAuthMode == GoogleDriveAuthMode.OAuthUser;
+
+    public string GoogleFolderId
+    {
+        get => Working.GoogleFolderId ?? "";
+        set { Working.GoogleFolderId = value; OnPropertyChanged(); }
+    }
+
+    public string GoogleClientId
+    {
+        get => Working.GoogleClientId ?? "";
+        set { Working.GoogleClientId = value.Length == 0 ? null : value; OnPropertyChanged(); }
+    }
+
+    public string GoogleAuthStatusText
+    {
+        get => _googleAuthStatusText;
+        private set => Set(ref _googleAuthStatusText, value);
+    }
+
+    public void SetGoogleClientSecret(string secret) =>
+        _newGoogleClientSecret = secret.Length == 0 ? null : secret;
+
+    /// <summary>Reads a downloaded service account key file and stores it protected.</summary>
+    public void LoadServiceAccountKey(string path)
+    {
+        try
+        {
+            var json = File.ReadAllText(path);
+            using var document = System.Text.Json.JsonDocument.Parse(json);
+            if (!document.RootElement.TryGetProperty("client_email", out var email) ||
+                !document.RootElement.TryGetProperty("private_key", out _))
+            {
+                GoogleAuthStatusText = "✗ That file is not a Google service account key (no client_email/private_key).";
+                return;
+            }
+            Working.ProtectedGoogleServiceAccountJson = _protector.Protect(json);
+            Working.GoogleAuthorizedAccount = email.GetString();
+            GoogleAuthStatusText =
+                $"✓ Service account key loaded for {email.GetString()}. Share the target folder with that address " +
+                "(and remember service accounts can only own files in a Shared Drive).";
+        }
+        catch (Exception ex)
+        {
+            GoogleAuthStatusText = "✗ " + ex.Message;
+        }
+    }
+
+    private string DescribeStoredGoogleAuth() => GoogleAuthMode switch
+    {
+        GoogleDriveAuthMode.ServiceAccount when Working.ProtectedGoogleServiceAccountJson is { Length: > 0 } =>
+            $"A service account key is stored ({Working.GoogleAuthorizedAccount}).",
+        GoogleDriveAuthMode.ServiceAccount => "No service account key loaded yet.",
+        _ when Working.ProtectedGoogleRefreshToken is { Length: > 0 } =>
+            $"Authorized as {Working.GoogleAuthorizedAccount ?? "a Google account"}.",
+        _ => "Not authorized yet.",
+    };
+
+    private async Task AuthorizeGoogleAsync()
+    {
+        if (string.IsNullOrWhiteSpace(GoogleClientId))
+        {
+            GoogleAuthStatusText = "✗ Enter the OAuth client ID first.";
+            return;
+        }
+        var clientSecret = _newGoogleClientSecret
+                           ?? (Working.ProtectedGoogleClientSecret is { Length: > 0 } blob
+                               ? _protector.Unprotect(blob)
+                               : null);
+        if (clientSecret is null)
+        {
+            GoogleAuthStatusText = "✗ Enter the OAuth client secret first.";
+            return;
+        }
+
+        GoogleAuthStatusText = "A browser window has opened — approve access there…";
+        try
+        {
+            var result = await GoogleDriveAuthorizer.AuthorizeAsync(GoogleClientId, clientSecret);
+            Working.ProtectedGoogleClientSecret = _protector.Protect(clientSecret);
+            Working.ProtectedGoogleRefreshToken = _protector.Protect(result.RefreshToken);
+            Working.GoogleAuthorizedAccount = result.AccountEmail;
+            _newGoogleClientSecret = null;
+            GoogleAuthStatusText =
+                $"✓ Authorized as {result.AccountEmail ?? "the selected account"}. The backup service will use this " +
+                "authorization without needing a browser again.";
+        }
+        catch (Exception ex)
+        {
+            GoogleAuthStatusText = "✗ " + ex.Message;
+        }
     }
 
     // SMB share
@@ -152,8 +272,18 @@ public sealed class OffsiteDestinationEditorViewModel : ObservableObject
         _ => Working.ProtectedSftpPassword is { Length: > 0 },
     };
 
-    /// <summary>A share accessed as the backup engine's own identity needs no secret.</summary>
-    public bool SecretRequired => Kind != OffsiteKind.SmbShare || !string.IsNullOrWhiteSpace(Working.SmbUsername);
+    /// <summary>
+    /// Whether the shared secret box applies. A share accessed as the backup engine's
+    /// own identity needs no secret, and Google Drive carries its own credential fields.
+    /// </summary>
+    public bool SecretRequired => Kind switch
+    {
+        OffsiteKind.SmbShare => !string.IsNullOrWhiteSpace(Working.SmbUsername),
+        OffsiteKind.GoogleDrive => false,
+        _ => true,
+    };
+
+    public bool ShowSecretBox => Kind != OffsiteKind.GoogleDrive;
 
     public string SecretHint =>
         HasStoredSecret ? "Leave blank to keep the stored secret."
@@ -196,6 +326,17 @@ public sealed class OffsiteDestinationEditorViewModel : ObservableObject
                 return false;
             case OffsiteKind.SmbShare when string.IsNullOrWhiteSpace(SmbPath):
                 error = @"Enter the share path (e.g. \\nas\backups\sql).";
+                return false;
+            case OffsiteKind.GoogleDrive when string.IsNullOrWhiteSpace(GoogleFolderId):
+                error = "Enter the Drive folder ID that should receive the backups.";
+                return false;
+            case OffsiteKind.GoogleDrive when IsGoogleServiceAccount &&
+                                              string.IsNullOrEmpty(Working.ProtectedGoogleServiceAccountJson):
+                error = "Load the service account key file.";
+                return false;
+            case OffsiteKind.GoogleDrive when IsGoogleOAuth &&
+                                              string.IsNullOrEmpty(Working.ProtectedGoogleRefreshToken):
+                error = "Authorize with Google first — the backup service cannot show a consent screen itself.";
                 return false;
         }
 
@@ -250,6 +391,7 @@ public sealed class OffsiteDestinationEditorViewModel : ObservableObject
         {
             var probe = Cloner.DeepClone(Working);
             probe.Kind = Kind;
+            probe.GoogleAuthMode = GoogleAuthMode;
             if (int.TryParse(SftpPortText, out var port))
                 probe.SftpPort = port;
             if (_newSecret is not null)

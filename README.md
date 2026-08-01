@@ -76,9 +76,9 @@ flowchart LR
   daily while unresolved.
 * **Off-site copies**: after a successful local backup, copy it to a **Windows
   file share (SMB/UNC), Azure Blob Storage, Amazon S3 (or any S3-compatible
-  endpoint), or SFTP** with retries and an independent, also chain-aware
-  retention policy on the remote side. An upload failure marks the run
-  "off-site failed" and alerts, without invalidating the local backup.
+  endpoint), SFTP, or Google Drive** with retries and an independent, also
+  chain-aware retention policy on the remote side. An upload failure marks the
+  run "off-site failed" and alerts, without invalidating the local backup.
 * **Storage mode per job** — *local only*, *local + off-site* (both copies
   kept, each with its own retention), or *off-site only* (the destination
   folder is staging; the local file is deleted once the upload succeeds). A
@@ -201,6 +201,36 @@ The service also runs fine as a console app (`dotnet run` /
 * The installer grants `Users` modify rights on the data folder so the control
   panel works unelevated. Lock it down to a dedicated group if config changes
   must be admin-only.
+
+## Google Drive destinations
+
+Drive needs an OAuth consent screen, which a Windows service can never show, so
+authorization happens once in the control panel and the service reuses the
+result. Two modes, chosen per destination:
+
+**Service account** (unattended, never expires) — create a service account in
+Google Cloud Console with the Drive API enabled, download its JSON key, and load
+it in the destination editor. Because a service account has **no Drive storage
+of its own**, the target folder must live in a **Shared Drive** (Google
+Workspace) that the service account's address has been added to. Pointing it at
+a shared *My Drive* folder fails with a storage-quota error.
+
+**User account** (works with ordinary Gmail/My Drive accounts) — create an OAuth
+client of type *Desktop app*, paste its client ID and secret, and click
+**Authorize with Google**. A browser opens once; only the resulting refresh
+token is stored (DPAPI-encrypted) and the service exchanges it for access tokens
+on its own. Move the OAuth consent screen out of **Testing** status —
+test-mode refresh tokens are revoked after 7 days, which would silently stop
+uploads.
+
+Either way, paste the **folder ID** (the last part of the folder's URL) into the
+destination. Sub-folders per prefix/database are created automatically. The app
+requests full Drive scope because it must list and delete inside a folder it did
+not create in order to enforce retention.
+
+Practical note: Drive is convenient but not built for backup throughput — for
+large databases a file share, S3 or Azure Blob will be considerably faster and
+cheaper to restore from.
 
 ## Troubleshooting
 

@@ -22,6 +22,16 @@ public class ConfigPorterTests
         OffsiteDestinations =
         {
             new OffsiteDestination { Name = "nas", Kind = OffsiteKind.Sftp, SftpHost = "h", SftpUsername = "u", ProtectedSftpPassword = "dpapi:BBBB" },
+            new OffsiteDestination
+            {
+                Name = "drive",
+                Kind = OffsiteKind.GoogleDrive,
+                GoogleAuthMode = GoogleDriveAuthMode.OAuthUser,
+                GoogleFolderId = "abc123",
+                GoogleClientId = "id.apps.googleusercontent.com",
+                ProtectedGoogleClientSecret = "dpapi:DDDD",
+                ProtectedGoogleRefreshToken = "dpapi:EEEE",
+            },
         },
         Notifications = new NotificationSettings { EmailEnabled = true, SmtpUsername = "s", ProtectedSmtpPassword = "dpapi:CCCC" },
     };
@@ -34,6 +44,15 @@ public class ConfigPorterTests
         Assert.Null(stripped.Connections[0].ProtectedPassword);
         Assert.Null(stripped.Notifications.ProtectedSmtpPassword);
         Assert.Null(stripped.OffsiteDestinations[0].ProtectedSftpPassword);
+
+        var drive = stripped.OffsiteDestinations[1];
+        Assert.Null(drive.ProtectedGoogleRefreshToken);
+        Assert.Null(drive.ProtectedGoogleClientSecret);
+        Assert.Null(drive.ProtectedGoogleServiceAccountJson);
+        // Non-secret settings survive so the import only needs re-authorization.
+        Assert.Equal("abc123", drive.GoogleFolderId);
+        Assert.Equal("id.apps.googleusercontent.com", drive.GoogleClientId);
+
         Assert.Equal("prod", stripped.Connections[0].Name);
         Assert.Single(stripped.Jobs);
     }
@@ -49,10 +68,11 @@ public class ConfigPorterTests
 
         Assert.Single(result.Config.Connections);
         Assert.Single(result.Config.Jobs);
-        Assert.Single(result.Config.OffsiteDestinations);
+        Assert.Equal(2, result.Config.OffsiteDestinations.Count);
         Assert.Contains(result.Warnings, w => w.Contains("prod"));
         Assert.Contains(result.Warnings, w => w.Contains("SMTP"));
         Assert.Contains(result.Warnings, w => w.Contains("nas"));
+        Assert.Contains(result.Warnings, w => w.Contains("drive") && w.Contains("authorize"));
     }
 
     [Fact]

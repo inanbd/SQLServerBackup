@@ -83,10 +83,14 @@ JSON conventions: camelCase property names, enums as strings, timestamps as ISO-
     {
       "id": "9a7e...",
       "name": "NAS",
-      "kind": "Sftp",                         // "SmbShare" | "AzureBlob" | "S3" | "Sftp"
+      "kind": "Sftp",                         // "SmbShare" | "AzureBlob" | "S3" | "Sftp" | "GoogleDrive"
       "prefix": "server01",                   // optional key prefix for all uploads
       // SmbShare:  smbPath (\\server\share\folder), optional smbUsername + protectedSmbPassword
       //            (no credentials = accessed as the account the backup engine runs as)
+      // GoogleDrive: googleFolderId + googleAuthMode ("ServiceAccount" | "OAuthUser");
+      //            ServiceAccount -> protectedGoogleServiceAccountJson (folder must be in a Shared Drive);
+      //            OAuthUser -> googleClientId + protectedGoogleClientSecret + protectedGoogleRefreshToken
+      //            (obtained by "Authorize with Google" in the app; googleAuthorizedAccount is a label)
       // AzureBlob: azureContainerUrl + protectedAzureSasToken (SAS needs create/write/list/delete)
       // S3:        s3Bucket, s3Region or s3ServiceUrl (+ s3ForcePathStyle), s3AccessKeyId, protectedS3SecretKey
       // Sftp:      sftpHost, sftpPort, sftpUsername, protectedSftpPassword, sftpRemotePath

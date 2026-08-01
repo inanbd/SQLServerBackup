@@ -11,7 +11,9 @@ public sealed class SmbOffsiteProvider : IOffsiteProvider
     private readonly string _root;
     private readonly string? _username;
     private readonly string? _password;
-    private WindowsNetworkConnection? _connection;
+    // Held as IDisposable so disposing it is not a Windows-only call site; it is only
+    // ever assigned inside the OS check in EnsureConnected.
+    private IDisposable? _connection;
 
     public SmbOffsiteProvider(string path, string? username, string? password)
     {

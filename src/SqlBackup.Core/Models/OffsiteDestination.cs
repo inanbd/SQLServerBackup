@@ -31,6 +31,26 @@ public sealed class OffsiteDestination
     public string? ProtectedS3SecretKey { get; set; }
     public bool S3ForcePathStyle { get; set; }
 
+    // --- GoogleDrive ---
+    public GoogleDriveAuthMode GoogleAuthMode { get; set; } = GoogleDriveAuthMode.OAuthUser;
+
+    /// <summary>Drive folder ID that receives the backups (the long id from the folder URL).</summary>
+    public string? GoogleFolderId { get; set; }
+
+    /// <summary>DPAPI-protected service account key JSON.</summary>
+    public string? ProtectedGoogleServiceAccountJson { get; set; }
+
+    /// <summary>OAuth desktop client ID (from Google Cloud Console).</summary>
+    public string? GoogleClientId { get; set; }
+
+    public string? ProtectedGoogleClientSecret { get; set; }
+
+    /// <summary>DPAPI-protected refresh token obtained by authorizing in the desktop app.</summary>
+    public string? ProtectedGoogleRefreshToken { get; set; }
+
+    /// <summary>Account that granted the refresh token, shown for reference only.</summary>
+    public string? GoogleAuthorizedAccount { get; set; }
+
     // --- SmbShare ---
     /// <summary>UNC path, e.g. \\nas\backups\sql (a local path also works).</summary>
     public string? SmbPath { get; set; }
@@ -52,6 +72,11 @@ public sealed class OffsiteDestination
         OffsiteKind.S3 => S3ServiceUrl is { Length: > 0 } url ? $"{url}/{S3Bucket}" : $"s3://{S3Bucket} ({S3Region})",
         OffsiteKind.Sftp => $"sftp://{SftpUsername}@{SftpHost}:{SftpPort}{SftpRemotePath}",
         OffsiteKind.SmbShare => SmbPath ?? "",
+        OffsiteKind.GoogleDrive =>
+            $"Google Drive folder {GoogleFolderId}" +
+            (GoogleAuthMode == GoogleDriveAuthMode.ServiceAccount
+                ? " (service account)"
+                : GoogleAuthorizedAccount is { Length: > 0 } account ? $" ({account})" : " (user account)"),
         _ => "",
     };
 }

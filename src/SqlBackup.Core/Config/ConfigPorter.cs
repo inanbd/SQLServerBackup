@@ -31,6 +31,9 @@ public static class ConfigPorter
             destination.ProtectedS3SecretKey = null;
             destination.ProtectedSftpPassword = null;
             destination.ProtectedSmbPassword = null;
+            destination.ProtectedGoogleServiceAccountJson = null;
+            destination.ProtectedGoogleClientSecret = null;
+            destination.ProtectedGoogleRefreshToken = null;
         }
         return clone;
     }
@@ -63,10 +66,17 @@ public static class ConfigPorter
                 // A share used under the engine's own identity has no secret to restore.
                 OffsiteKind.SmbShare => !string.IsNullOrEmpty(destination.SmbUsername) &&
                                         string.IsNullOrEmpty(destination.ProtectedSmbPassword),
+                OffsiteKind.GoogleDrive => destination.GoogleAuthMode == GoogleDriveAuthMode.ServiceAccount
+                    ? string.IsNullOrEmpty(destination.ProtectedGoogleServiceAccountJson)
+                    : string.IsNullOrEmpty(destination.ProtectedGoogleRefreshToken),
                 _ => false,
             };
             if (missing)
-                warnings.Add($"Off-site destination '{destination.Name}': re-enter its secret.");
+            {
+                warnings.Add(destination.Kind == OffsiteKind.GoogleDrive
+                    ? $"Off-site destination '{destination.Name}': re-import the service account key, or authorize with Google again."
+                    : $"Off-site destination '{destination.Name}': re-enter its secret.");
+            }
         }
 
         return new ImportResult(config, warnings);

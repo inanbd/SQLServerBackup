@@ -13,6 +13,8 @@
     <PackageReference Include="AWSSDK.S3" Version="3.7.305.5" />
     <PackageReference Include="Azure.Storage.Blobs" Version="12.19.1" />
     <PackageReference Include="Cronos" Version="0.8.4" />
+    <PackageReference Include="Google.Apis.Auth" Version="1.68.0" />
+    <PackageReference Include="Google.Apis.Drive.v3" Version="1.68.0.3608" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.2" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.2" />
     <PackageReference Include="SSH.NET" Version="2024.1.0" />
