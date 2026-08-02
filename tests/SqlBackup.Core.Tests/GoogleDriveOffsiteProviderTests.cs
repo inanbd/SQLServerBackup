@@ -36,6 +36,38 @@ public class GoogleDriveOffsiteProviderTests
     }
 
     [Fact]
+    public void ClientId_InGoogleFormat_IsAccepted()
+    {
+        Assert.True(GoogleDriveCredentials.TryValidateClientId(
+            "123456789012-abc123def456.apps.googleusercontent.com", out _));
+        // Pasted with surrounding whitespace is still fine.
+        Assert.True(GoogleDriveCredentials.TryValidateClientId(
+            "  123-abc.apps.googleusercontent.com  ", out _));
+    }
+
+    [Fact]
+    public void ClientId_ThatIsAnEmailAddress_IsRejectedWithASpecificHint()
+    {
+        // The exact mistake that produces Google's opaque "invalid_client" page.
+        Assert.False(GoogleDriveCredentials.TryValidateClientId("someone@gmail.com", out var error));
+
+        Assert.Contains("email address", error);
+        Assert.Contains(".apps.googleusercontent.com", error);
+        Assert.Contains("Desktop app", error);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("my-project")]
+    [InlineData("123456789012")]
+    public void ClientId_ThatIsNotAClientId_IsRejected(string clientId)
+    {
+        Assert.False(GoogleDriveCredentials.TryValidateClientId(clientId, out var error));
+        Assert.NotEqual("", error);
+    }
+
+    [Fact]
     public void Factory_RequiresFolderId()
     {
         var destination = new OffsiteDestination

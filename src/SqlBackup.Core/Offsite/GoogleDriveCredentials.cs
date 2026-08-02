@@ -53,6 +53,36 @@ public static class GoogleDriveCredentials
         return new UserCredential(flow, "user", new TokenResponse { RefreshToken = refreshToken });
     }
 
+    public const string ClientIdSuffix = ".apps.googleusercontent.com";
+
+    /// <summary>
+    /// Checks the client ID's shape before starting the browser flow. Google answers a
+    /// malformed client ID with an opaque "Access blocked / invalid_client" page, so
+    /// catching it here is the difference between a fixable message and a dead end.
+    /// </summary>
+    public static bool TryValidateClientId(string? clientId, out string error)
+    {
+        error = "";
+        var value = clientId?.Trim() ?? "";
+
+        if (value.Length == 0)
+        {
+            error = "Enter the OAuth client ID from Google Cloud Console.";
+            return false;
+        }
+        if (value.EndsWith(ClientIdSuffix, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        error = (value.Contains('@')
+                    ? "That looks like an email address, not an OAuth client ID. "
+                    : "That does not look like a Google OAuth client ID. ") +
+                $"It is issued by Google and ends with '{ClientIdSuffix}', " +
+                "for example 123456789012-abc123def456.apps.googleusercontent.com. " +
+                "Get it from Google Cloud Console → APIs & Services → Credentials → " +
+                "Create credentials → OAuth client ID → Application type: Desktop app.";
+        return false;
+    }
+
     public static GoogleAuthorizationCodeFlow CreateFlow(string clientId, string clientSecret) =>
         new(new GoogleAuthorizationCodeFlow.Initializer
         {

@@ -184,9 +184,9 @@ public sealed class OffsiteDestinationEditorViewModel : ObservableObject
 
     private async Task AuthorizeGoogleAsync()
     {
-        if (string.IsNullOrWhiteSpace(GoogleClientId))
+        if (!GoogleDriveCredentials.TryValidateClientId(GoogleClientId, out var clientIdError))
         {
-            GoogleAuthStatusText = "✗ Enter the OAuth client ID first.";
+            GoogleAuthStatusText = "✗ " + clientIdError;
             return;
         }
         var clientSecret = _newGoogleClientSecret
@@ -195,7 +195,9 @@ public sealed class OffsiteDestinationEditorViewModel : ObservableObject
                                : null);
         if (clientSecret is null)
         {
-            GoogleAuthStatusText = "✗ Enter the OAuth client secret first.";
+            GoogleAuthStatusText =
+                "✗ Enter the OAuth client secret first — it is shown next to the client ID in Google Cloud Console " +
+                "(usually starting with 'GOCSPX-'), and is not your Google account password.";
             return;
         }
 
@@ -333,6 +335,10 @@ public sealed class OffsiteDestinationEditorViewModel : ObservableObject
             case OffsiteKind.GoogleDrive when IsGoogleServiceAccount &&
                                               string.IsNullOrEmpty(Working.ProtectedGoogleServiceAccountJson):
                 error = "Load the service account key file.";
+                return false;
+            case OffsiteKind.GoogleDrive when IsGoogleOAuth &&
+                                              !GoogleDriveCredentials.TryValidateClientId(GoogleClientId, out var clientIdError):
+                error = clientIdError;
                 return false;
             case OffsiteKind.GoogleDrive when IsGoogleOAuth &&
                                               string.IsNullOrEmpty(Working.ProtectedGoogleRefreshToken):

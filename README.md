@@ -215,13 +215,26 @@ of its own**, the target folder must live in a **Shared Drive** (Google
 Workspace) that the service account's address has been added to. Pointing it at
 a shared *My Drive* folder fails with a storage-quota error.
 
-**User account** (works with ordinary Gmail/My Drive accounts) — create an OAuth
-client of type *Desktop app*, paste its client ID and secret, and click
-**Authorize with Google**. A browser opens once; only the resulting refresh
-token is stored (DPAPI-encrypted) and the service exchanges it for access tokens
-on its own. Move the OAuth consent screen out of **Testing** status —
-test-mode refresh tokens are revoked after 7 days, which would silently stop
-uploads.
+**User account** (works with ordinary Gmail/My Drive accounts):
+
+1. In [Google Cloud Console](https://console.cloud.google.com/), create or pick
+   a project.
+2. *APIs & Services → Library* → enable the **Google Drive API**.
+3. *APIs & Services → OAuth consent screen* → configure it (External is fine for
+   a personal account) and add your Google account as a user.
+4. *APIs & Services → Credentials → Create credentials → OAuth client ID* →
+   Application type **Desktop app**.
+5. Copy the generated **Client ID** — it looks like
+   `123456789012-abc123def456.apps.googleusercontent.com` — and the **Client
+   secret** (`GOCSPX-…`) into the destination editor. These are *not* your email
+   address and password; pasting those produces Google's
+   "Access blocked / Error 401: invalid_client" page.
+6. Click **Authorize with Google**. A browser opens once; only the resulting
+   refresh token is stored (DPAPI-encrypted) and the service exchanges it for
+   access tokens on its own.
+
+Move the OAuth consent screen out of **Testing** status — test-mode refresh
+tokens are revoked after 7 days, which would silently stop uploads.
 
 Either way, paste the **folder ID** (the last part of the folder's URL) into the
 destination. Sub-folders per prefix/database are created automatically. The app
