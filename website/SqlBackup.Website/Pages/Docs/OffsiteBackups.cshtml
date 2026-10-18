@@ -7,10 +7,7 @@
     meta.AppendSiteName = false;
     meta.Description = "Copy SQL Server backups off-site automatically: setup guides for network shares, Amazon S3, S3-compatible storage, Azure Blob Storage, SFTP and Google Drive.";
     meta.OgType = "article";
-    meta.Image = Screenshots.Get("offsite-destinations").Src2x;
-    meta.ImageAlt = Screenshots.Get("offsite-destinations").Alt;
-    meta.ImageWidth = 2290;
-    meta.ImageHeight = 1418;
+    meta.UseScreenshotImage(Screenshots.Get("offsite-destinations"));
     meta.Breadcrumbs.Add(new("Home", "/"));
     meta.Breadcrumbs.Add(new("Docs", "/docs"));
     meta.Breadcrumbs.Add(new("Off-site backups", "/docs/off-site-backups"));

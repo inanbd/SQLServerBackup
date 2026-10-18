@@ -158,20 +158,78 @@ public sealed class ContactFormTests
     }
 
     [Fact]
-    public async Task Repeated_posts_are_rate_limited()
+    public async Task Sending_is_rate_limited_per_client_without_losing_the_message()
     {
         using var factory = new WebsiteFactory(new Dictionary<string, string?> { ["ContactForm:PermitLimit"] = "2" });
         var (client, form) = await OpenFormAsync(factory);
         factory.Clock.Advance(TimeSpan.FromSeconds(20));
 
-        (await PostAsync(client, form)).Dispose();
-        (await PostAsync(client, form)).Dispose();
+        // Validation errors don't use up the quota...
+        var invalid = new Dictionary<string, string>(form) { ["Input.Email"] = "nope" };
+        (await PostAsync(client, invalid)).Dispose();
+        (await PostAsync(client, invalid)).Dispose();
+        // ...only messages that are actually sent do.
+        Assert.Equal(HttpStatusCode.Redirect, (await PostAsync(client, form)).StatusCode);
+        Assert.Equal(HttpStatusCode.Redirect, (await PostAsync(client, form)).StatusCode);
         using var limited = await PostAsync(client, form);
 
-        Assert.Equal(HttpStatusCode.SeeOther, limited.StatusCode);
-        Assert.Equal("/contact?limited=true", limited.Headers.Location?.OriginalString);
+        Assert.Equal(HttpStatusCode.OK, limited.StatusCode);
+        var doc = Html.Parse(await limited.Content.ReadAsStringAsync());
+        Assert.Contains("sent several messages in a short time", doc.QuerySelector(".alert--error")?.TextContent);
+        Assert.Contains("OS error 5", doc.QuerySelector("#Input_Message")?.TextContent);
         Assert.Equal(2, factory.Mailer.Sent.Count);
-        var page = await client.GetStringAsync("/contact?limited=true");
-        Assert.Contains("sent several messages in a short time", page);
+    }
+
+    [Fact]
+    public async Task An_immediate_resend_after_an_error_is_not_mistaken_for_a_bot()
+    {
+        using var factory = new WebsiteFactory();
+        var (client, form) = await OpenFormAsync(factory);
+        factory.Clock.Advance(TimeSpan.FromHours(13));
+
+        using var expired = await PostAsync(client, form);
+        var doc = Html.Parse(await expired.Content.ReadAsStringAsync());
+        Assert.Contains("This form has expired", doc.Body!.TextContent);
+        form["FormToken"] = (doc.QuerySelector("input[name=FormToken]") as IHtmlInputElement)!.Value;
+
+        // The visitor clicks Send again right away (no clock advance).
+        using var resent = await PostAsync(client, form);
+
+        Assert.Equal("/contact/thank-you", resent.Headers.Location?.OriginalString);
+        Assert.Single(factory.Mailer.Sent);
+    }
+
+    [Theory]
+    [InlineData("Ada <ada@example.com>")]
+    [InlineData("ada@example,com")]
+    [InlineData("ada@@example.com")]
+    public async Task Addresses_that_mail_servers_would_reject_are_reported_on_the_field(string email)
+    {
+        using var factory = new WebsiteFactory();
+        var (client, form) = await OpenFormAsync(factory);
+        factory.Clock.Advance(TimeSpan.FromSeconds(20));
+        form["Input.Email"] = email;
+
+        using var response = await PostAsync(client, form);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var doc = Html.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Contains("Please enter a valid email address.",
+            doc.QuerySelectorAll(".field-validation-error").Select(e => e.TextContent.Trim()));
+        Assert.Empty(factory.Mailer.Sent);
+    }
+
+    [Fact]
+    public async Task Cancellation_unrelated_to_the_request_shows_the_friendly_error()
+    {
+        using var factory = new WebsiteFactory();
+        factory.Mailer.Failure = new TaskCanceledException("SMTP timed out");
+        var (client, form) = await OpenFormAsync(factory);
+        factory.Clock.Advance(TimeSpan.FromSeconds(20));
+
+        using var response = await PostAsync(client, form);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("could not be sent", await response.Content.ReadAsStringAsync());
     }
 }

@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Reflection;
 using System.Text;
 using System.Xml;
 using Microsoft.Extensions.Options;
@@ -28,9 +30,21 @@ public static class SeoEndpoints
         return app;
     }
 
-    /// <summary>Content ships with the build, so the build time is the honest lastmod.</summary>
-    internal static readonly DateTime SiteBuildDate =
-        File.GetLastWriteTimeUtc(typeof(SeoEndpoints).Assembly.Location);
+    /// <summary>
+    /// Content ships with the build, so the build date is the honest lastmod. It is stamped into
+    /// the assembly at compile time (see the .csproj), which also works for single-file publishes.
+    /// </summary>
+    internal static readonly DateTime SiteBuildDate = ReadBuildDate();
+
+    private static DateTime ReadBuildDate()
+    {
+        var value = typeof(SeoEndpoints).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
+            .FirstOrDefault(a => a.Key == "BuildDate")?.Value;
+        return DateTime.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture,
+            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var date)
+            ? date
+            : DateTime.UtcNow.Date;
+    }
 
     internal static string BuildSitemap(SiteOptions site, DateTime lastModifiedUtc)
     {
@@ -44,9 +58,9 @@ public static class SeoEndpoints
             {
                 xml.WriteStartElement("url", ns);
                 xml.WriteElementString("loc", ns, site.AbsoluteUrl(page.Path));
-                xml.WriteElementString("lastmod", ns, lastModifiedUtc.ToString("yyyy-MM-dd"));
+                xml.WriteElementString("lastmod", ns, lastModifiedUtc.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
                 xml.WriteElementString("changefreq", ns, page.ChangeFrequency);
-                xml.WriteElementString("priority", ns, page.Priority.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture));
+                xml.WriteElementString("priority", ns, page.Priority.ToString("0.0", CultureInfo.InvariantCulture));
                 xml.WriteEndElement();
             }
             xml.WriteEndElement();

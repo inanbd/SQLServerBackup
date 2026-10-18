@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Text;
 using MailKit.Net.Smtp;
@@ -56,7 +57,8 @@ public sealed class SmtpContactMailer : IContactMailer
                 ? options.PickupDirectory
                 : Path.Combine(_env.ContentRootPath, options.PickupDirectory);
             Directory.CreateDirectory(folder);
-            var file = Path.Combine(folder, $"{message.ReceivedUtc:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}.eml");
+            var file = Path.Combine(folder,
+                $"{message.ReceivedUtc.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture)}-{Guid.NewGuid():N}.eml");
             await mime.WriteToAsync(file, ct);
             _log.LogInformation("Contact message from {Email} written to {File}", message.Email, file);
             return;
@@ -87,7 +89,7 @@ public sealed class SmtpContactMailer : IContactMailer
             ("Email", message.Email),
             ("Company", message.Company),
             ("Topic", message.Topic),
-            ("Received (UTC)", message.ReceivedUtc.ToString("yyyy-MM-dd HH:mm:ss")),
+            ("Received (UTC)", message.ReceivedUtc.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)),
             ("IP address", message.ClientIp),
             ("User agent", message.UserAgent),
         };
@@ -109,11 +111,35 @@ public sealed class SmtpContactMailer : IContactMailer
         return mime;
     }
 
+    /// <summary>
+    /// True when MimeKit accepts the value as a bare address. [EmailAddress] only checks for a
+    /// single '@', so values like "Ada &lt;ada@example.com&gt;" would otherwise fail at send time.
+    /// </summary>
+    public static bool IsValidAddress(string value)
+    {
+        try
+        {
+            return new MailboxAddress(string.Empty, value).Address == value;
+        }
+        catch (ParseException)
+        {
+            return false;
+        }
+    }
+
     internal static IEnumerable<string> SplitAddresses(string value) =>
         value.Split([';', ','], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
+    /// <summary>Parses Smtp:Security by name only (startup validation rejects anything else).</summary>
+    internal static bool TryParseSecurity(string value, out SecureSocketOptions security) =>
+        Enum.TryParse(value, ignoreCase: true, out security) &&
+        Enum.IsDefined(security) &&
+        !value.Trim().All(char.IsAsciiDigit);
+
     internal static SecureSocketOptions ParseSecurity(string value) =>
-        Enum.TryParse<SecureSocketOptions>(value, ignoreCase: true, out var parsed) ? parsed : SecureSocketOptions.StartTls;
+        TryParseSecurity(value, out var security)
+            ? security
+            : throw new InvalidOperationException($"ContactEmail:Smtp:Security '{value}' is not one of: {string.Join(", ", Enum.GetNames<SecureSocketOptions>())}.");
 
     private static string SingleLine(string value) =>
         string.Join(' ', value.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries));

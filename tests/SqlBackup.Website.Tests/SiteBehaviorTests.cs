@@ -41,6 +41,15 @@ public sealed class SiteBehaviorTests : IClassFixture<WebsiteFactory>
     }
 
     [Fact]
+    public async Task Download_page_shows_the_build_version_by_default()
+    {
+        var doc = await _factory.CreateClient().GetDocumentAsync("/download");
+
+        Assert.Equal("v1.0.0", doc.QuerySelector(".version")?.TextContent);
+        Assert.Contains("SqlBackupSetup-1.0.0.exe", doc.Body!.TextContent);
+    }
+
+    [Fact]
     public async Task License_page_renders_the_repository_license()
     {
         var doc = await _factory.CreateClient().GetDocumentAsync("/license");
@@ -96,9 +105,7 @@ public sealed class SiteBehaviorTests : IClassFixture<WebsiteFactory>
             Assert.True(File.Exists(oneX), $"{oneX} is missing");
             Assert.True(File.Exists(twoX), $"{twoX} is missing");
             Assert.Equal((shot.Width, shot.Height), WebP.ReadSize(oneX));
-            var (w2, h2) = WebP.ReadSize(twoX);
-            Assert.InRange(w2, shot.Width * 2 - 1, shot.Width * 2 + 1);
-            Assert.InRange(h2, shot.Height * 2 - 1, shot.Height * 2 + 1);
+            Assert.Equal((shot.Width * 2, shot.Height * 2), WebP.ReadSize(twoX));
         }
     }
 

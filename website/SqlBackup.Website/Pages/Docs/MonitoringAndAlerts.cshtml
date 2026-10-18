@@ -7,10 +7,7 @@
     meta.AppendSiteName = false;
     meta.Description = "Monitor SQL Server backups: dashboard, history and reports, plus email, Slack, Teams and Discord webhook, Windows Event Log and missing-backup (RPO) alerts.";
     meta.OgType = "article";
-    meta.Image = Screenshots.Get("reports").Src2x;
-    meta.ImageAlt = Screenshots.Get("reports").Alt;
-    meta.ImageWidth = 2290;
-    meta.ImageHeight = 1418;
+    meta.UseScreenshotImage(Screenshots.Get("reports"));
     meta.Breadcrumbs.Add(new("Home", "/"));
     meta.Breadcrumbs.Add(new("Docs", "/docs"));
     meta.Breadcrumbs.Add(new("Monitoring & alerts", "/docs/monitoring-and-alerts"));

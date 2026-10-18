@@ -1,5 +1,6 @@
+using System.Net;
 using System.Text.RegularExpressions;
-using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Extensions.Options;
@@ -14,6 +15,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddOptions<SiteOptions>()
     .Bind(builder.Configuration.GetSection(SiteOptions.SectionName))
     .ValidateDataAnnotations()
+    .Validate(o => o.OwnerUrl.Length == 0 || Uri.TryCreate(o.OwnerUrl, UriKind.Absolute, out _),
+        "Site:OwnerUrl must be an absolute URL or empty.")
+    .Validate(o => o.TrustedProxies.All(p => IPAddress.TryParse(p, out _) || System.Net.IPNetwork.TryParse(p, out _)),
+        "Site:TrustedProxies must contain IP addresses or CIDR networks such as 10.0.0.0/8.")
     .ValidateOnStart();
 builder.Services.AddOptions<GoogleAnalyticsOptions>()
     .Bind(builder.Configuration.GetSection(GoogleAnalyticsOptions.SectionName))
@@ -25,7 +30,11 @@ builder.Services.AddOptions<SearchConsoleOptions>()
     .Validate(o => o.HtmlVerificationFile.Length == 0 || Regex.IsMatch(o.HtmlVerificationFile, @"^google[0-9a-zA-Z]+\.html$"),
         "GoogleSearchConsole:HtmlVerificationFile must be the file name Google gives you, e.g. google0123456789abcdef.html.")
     .ValidateOnStart();
-builder.Services.AddOptions<ContactEmailOptions>().Bind(builder.Configuration.GetSection(ContactEmailOptions.SectionName));
+builder.Services.AddOptions<ContactEmailOptions>()
+    .Bind(builder.Configuration.GetSection(ContactEmailOptions.SectionName))
+    .Validate(o => SmtpContactMailer.TryParseSecurity(o.Smtp.Security, out _),
+        "ContactEmail:Smtp:Security must be one of None, Auto, SslOnConnect, StartTls or StartTlsWhenAvailable.")
+    .ValidateOnStart();
 builder.Services.AddOptions<ContactFormOptions>().Bind(builder.Configuration.GetSection(ContactFormOptions.SectionName));
 
 builder.Services.AddRazorPages(o =>
@@ -41,6 +50,19 @@ builder.Services.Configure<RouteOptions>(o => o.LowercaseUrls = true);
 builder.Services.AddScoped<CspNonce>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IContactMailer, SmtpContactMailer>();
+builder.Services.AddSingleton<ContactSendLimiter>();
+
+// Antiforgery and contact-form tokens are encrypted with these keys. Persist them (for example
+// on a container volume) so open forms keep working across restarts and redeploys.
+var keysDirectory = builder.Configuration["DataProtection:KeysDirectory"];
+if (!string.IsNullOrWhiteSpace(keysDirectory))
+{
+    builder.Services.AddDataProtection()
+        .SetApplicationName("SqlBackup.Website")
+        .PersistKeysToFileSystem(new DirectoryInfo(Path.IsPathRooted(keysDirectory)
+            ? keysDirectory
+            : Path.Combine(builder.Environment.ContentRootPath, keysDirectory)));
+}
 
 builder.Services.AddResponseCompression(o =>
 {
@@ -56,40 +78,23 @@ builder.Services.AddHsts(o =>
     o.IncludeSubDomains = false;
 });
 
-// Contact form: a fixed number of POSTs per client IP per window; reading the page is never limited.
-builder.Services.AddRateLimiter(o =>
-{
-    o.AddPolicy(ContactRateLimit.PolicyName, context =>
-    {
-        if (!HttpMethods.IsPost(context.Request.Method))
-            return RateLimitPartition.GetNoLimiter("read");
-
-        var form = context.RequestServices.GetRequiredService<IOptions<ContactFormOptions>>().Value;
-        return RateLimitPartition.GetFixedWindowLimiter(
-            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-            _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = Math.Max(1, form.PermitLimit),
-                Window = TimeSpan.FromMinutes(Math.Max(1, form.WindowMinutes)),
-                QueueLimit = 0,
-            });
-    });
-    o.OnRejected = (context, _) =>
-    {
-        context.HttpContext.Response.StatusCode = StatusCodes.Status303SeeOther;
-        context.HttpContext.Response.Headers.Location = "/contact?limited=true";
-        return ValueTask.CompletedTask;
-    };
-});
-
 if (builder.Configuration.GetValue<bool>($"{SiteOptions.SectionName}:{nameof(SiteOptions.BehindReverseProxy)}"))
 {
+    var trusted = builder.Configuration.GetSection($"{SiteOptions.SectionName}:{nameof(SiteOptions.TrustedProxies)}").Get<string[]>() ?? [];
     builder.Services.Configure<ForwardedHeadersOptions>(o =>
     {
         o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-        // The proxy address is not known in advance on most hosting platforms.
         o.KnownNetworks.Clear();
         o.KnownProxies.Clear();
+        // Without a list every sender is trusted, which is only safe when the app port is
+        // reachable from the proxy alone (see website/README.md).
+        foreach (var proxy in trusted)
+        {
+            if (IPAddress.TryParse(proxy, out var address))
+                o.KnownProxies.Add(address);
+            else if (System.Net.IPNetwork.TryParse(proxy, out var network))
+                o.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(network.BaseAddress, network.PrefixLength));
+        }
     });
 }
 
@@ -123,7 +128,6 @@ app.UseStaticFiles(new StaticFileOptions
 });
 
 app.UseRouting();
-app.UseRateLimiter();
 
 app.MapRazorPages();
 app.MapSeoEndpoints();

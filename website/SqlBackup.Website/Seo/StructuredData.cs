@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using Microsoft.AspNetCore.Html;
@@ -39,7 +40,7 @@ public static class StructuredData
         ["applicationCategory"] = "BusinessApplication",
         ["applicationSubCategory"] = "Database backup software",
         ["operatingSystem"] = "Windows 10, Windows 11, Windows Server 2016 or later",
-        ["softwareVersion"] = site.Version,
+        ["softwareVersion"] = site.ProductVersion,
         ["license"] = site.AbsoluteUrl("/license"),
         ["isAccessibleForFree"] = true,
         ["url"] = site.AbsoluteUrl("/"),
@@ -76,7 +77,7 @@ public static class StructuredData
         ["description"] = description,
         ["url"] = site.AbsoluteUrl(path),
         ["mainEntityOfPage"] = site.AbsoluteUrl(path),
-        ["dateModified"] = SeoEndpoints.SiteBuildDate.ToString("yyyy-MM-dd"),
+        ["dateModified"] = SeoEndpoints.SiteBuildDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
         ["author"] = Owner(site),
         ["publisher"] = Owner(site),
         ["about"] = new Dictionary<string, object> { ["@type"] = "SoftwareApplication", ["name"] = site.Name },

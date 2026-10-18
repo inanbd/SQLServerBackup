@@ -7,10 +7,7 @@
     meta.AppendSiteName = false;
     meta.Description = "Configure SQL Server backup jobs: pick databases, mix full, differential and transaction log backups, schedule with cron, set retention and verify every file.";
     meta.OgType = "article";
-    meta.Image = Screenshots.Get("job-editor").Src2x;
-    meta.ImageAlt = Screenshots.Get("job-editor").Alt;
-    meta.ImageWidth = 1350;
-    meta.ImageHeight = 1458;
+    meta.UseScreenshotImage(Screenshots.Get("job-editor"));
     meta.Breadcrumbs.Add(new("Home", "/"));
     meta.Breadcrumbs.Add(new("Docs", "/docs"));
     meta.Breadcrumbs.Add(new("Backup jobs & schedules", "/docs/backup-jobs"));

@@ -21,10 +21,6 @@
 <section class="section">
     <div class="container contact-grid">
         <div>
-            @if (Model.RateLimited)
-            {
-                <div class="alert alert--error" role="alert">You've sent several messages in a short time. Please wait a few minutes before sending another one.</div>
-            }
             @if (Model.ErrorMessage is not null)
             {
                 <div class="alert alert--error" role="alert">@Model.ErrorMessage</div>

@@ -15,16 +15,22 @@ public static class CanonicalUrls
             if ((HttpMethods.IsGet(request.Method) || HttpMethods.IsHead(request.Method)) &&
                 path is { Length: > 1 } && !Path.HasExtension(path))
             {
-                var canonical = path.TrimEnd('/').ToLowerInvariant();
-                if (canonical.Length == 0)
-                    canonical = "/";
+                var canonical = Canonicalize(path);
                 if (!string.Equals(canonical, path, StringComparison.Ordinal))
                 {
                     context.Response.StatusCode = StatusCodes.Status301MovedPermanently;
-                    context.Response.Headers.Location = request.PathBase + canonical + request.QueryString;
+                    context.Response.Headers.Location =
+                        request.PathBase.Add(new PathString(canonical)).ToUriComponent() + request.QueryString.ToUriComponent();
                     return;
                 }
             }
             await next();
         });
+
+    /// <summary>
+    /// Lowercase, no trailing slash, exactly one leading slash. Collapsing leading slashes and
+    /// backslashes matters: "//evil.example/" must never become a protocol-relative Location.
+    /// </summary>
+    internal static string Canonicalize(string path) =>
+        "/" + path.TrimEnd('/').TrimStart('/', '\\').ToLowerInvariant();
 }

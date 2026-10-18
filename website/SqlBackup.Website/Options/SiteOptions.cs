@@ -18,21 +18,23 @@ public sealed class SiteOptions
     [Required]
     public string Owner { get; set; } = "";
 
-    /// <summary>Profile page of the owner (structured data "author"/"publisher" URL).</summary>
-    [Url]
+    /// <summary>Optional profile page of the owner (structured data "author"/"publisher" URL).</summary>
     public string OwnerUrl { get; set; } = "";
 
-    /// <summary>Product version shown on the site and in structured data.</summary>
-    public string Version { get; set; } = "1.0.0";
+    /// <summary>
+    /// Product version shown on the site and in structured data. Empty = the build version
+    /// (&lt;Version&gt; in Directory.Build.props), so it moves with the application's releases.
+    /// </summary>
+    public string Version { get; set; } = "";
 
-    [Url]
+    [Required, Url]
     public string RepositoryUrl { get; set; } = "";
 
     /// <summary>Where every "Download" button points (GitHub Releases by default).</summary>
-    [Url]
+    [Required, Url]
     public string DownloadUrl { get; set; } = "";
 
-    [Url]
+    [Required, Url]
     public string IssuesUrl { get; set; } = "";
 
     /// <summary>Optional X/Twitter account (with or without "@") for twitter:site.</summary>
@@ -43,6 +45,22 @@ public sealed class SiteOptions
 
     /// <summary>Honor X-Forwarded-For/Proto from a reverse proxy (nginx, a load balancer, a container platform).</summary>
     public bool BehindReverseProxy { get; set; }
+
+    /// <summary>
+    /// Proxy IP addresses or CIDR networks whose X-Forwarded-* headers are believed. Empty with
+    /// <see cref="BehindReverseProxy"/> = trust any sender (only safe when the app port is private).
+    /// </summary>
+    public string[] TrustedProxies { get; set; } = [];
+
+    /// <summary>The version to display: <see cref="Version"/>, or the build version when it is empty.</summary>
+    public string ProductVersion => Version.Length > 0 ? Version : BuildVersion;
+
+    private static readonly string BuildVersion =
+        (typeof(SiteOptions).Assembly
+             .GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+             .OfType<System.Reflection.AssemblyInformationalVersionAttribute>()
+             .FirstOrDefault()?.InformationalVersion ?? "1.0.0")
+        .Split('+')[0];
 
     /// <summary>Absolute URL for a site-relative path, e.g. "/features" -> "https://example.com/features".</summary>
     public string AbsoluteUrl(string path) =>

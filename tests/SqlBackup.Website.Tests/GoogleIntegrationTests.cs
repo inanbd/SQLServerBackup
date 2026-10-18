@@ -58,6 +58,28 @@ public sealed class GoogleIntegrationTests
         Assert.Contains("MeasurementId", error.ToString());
     }
 
+    [Theory]
+    [InlineData("ContactEmail:Smtp:Security", "SSL")]
+    [InlineData("ContactEmail:Smtp:Security", "9")]
+    [InlineData("Site:TrustedProxies:0", "not-an-ip")]
+    [InlineData("Site:RepositoryUrl", "")]
+    public void Invalid_settings_stop_the_site_with_a_clear_message(string key, string value)
+    {
+        using var factory = new WebsiteFactory(new Dictionary<string, string?> { [key] = value });
+
+        var error = Assert.ThrowsAny<Exception>(() => factory.CreateClient());
+        Assert.Contains(key.Split(':')[^1].TrimEnd('0').TrimEnd(':'), error.ToString());
+    }
+
+    [Fact]
+    public async Task Optional_owner_url_may_be_empty()
+    {
+        using var factory = new WebsiteFactory(new Dictionary<string, string?> { ["Site:OwnerUrl"] = "" });
+        using var response = await factory.CreateClient().GetAsync("/");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
     [Fact]
     public async Task Search_console_meta_tag_and_html_file_are_served_when_configured()
     {

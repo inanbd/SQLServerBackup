@@ -13,7 +13,7 @@ website/SqlBackup.Website/        the site
   Services/ContactMailer.cs       contact form email (MailKit)
   Infrastructure/                 security headers (CSP), canonical URLs, screenshot tag helper
   wwwroot/img/screens/            application screenshots, 1x and 2x WebP
-tests/SqlBackup.Website.Tests/    55 integration tests (SEO, Google settings, contact form, links)
+tests/SqlBackup.Website.Tests/    integration tests (SEO, Google settings, contact form, links)
 ```
 
 ## Run it locally
@@ -32,22 +32,32 @@ index it.
 
 ## Configuration (`appsettings.json`)
 
-Every setting below lives in `website/SqlBackup.Website/appsettings.json`. Empty
-values switch the related feature off.
+Every setting below lives in `website/SqlBackup.Website/appsettings.json`. For
+Google Analytics, Search Console and the contact form, empty values switch the
+feature off. Invalid values (a malformed URL, measurement ID, SMTP security mode
+or proxy address) stop the site at startup with a message naming the setting.
 
 ### `Site`
 
 | Key | Default | Purpose |
 |---|---|---|
 | `Name` | `SQL Server Backup Suite` | Site / product name in titles and structured data |
-| `BaseUrl` | `https://sql-backup.kaizar.us` | Public origin, **no trailing slash**. Used for canonical URLs, `sitemap.xml`, `robots.txt` and Open Graph tags |
-| `Owner`, `OwnerUrl` | `inanbd`, GitHub profile | Copyright holder (footer) and author in structured data |
-| `Version` | `1.0.0` | Version shown on the download page |
-| `RepositoryUrl`, `IssuesUrl` | GitHub repo / issues | Links in navigation, footer and docs |
-| `DownloadUrl` | GitHub Releases | Target of every *Download* button |
+| `BaseUrl` | `https://sql-backup.kaizar.us` | **Required.** Public origin, no trailing slash. Used for canonical URLs, `sitemap.xml`, `robots.txt` and Open Graph tags |
+| `Owner` | `inanbd` | **Required.** Copyright holder (footer) and author in structured data |
+| `OwnerUrl` | GitHub profile | Optional profile URL for the author in structured data |
+| `Version` | empty | Version on the download page and in structured data. Empty = the application's build version (`<Version>` in `Directory.Build.props`), so it follows releases automatically |
+| `RepositoryUrl`, `IssuesUrl` | GitHub repo / issues | **Required.** Links in navigation, footer and docs |
+| `DownloadUrl` | GitHub Releases | **Required.** Target of every *Download* button |
 | `TwitterSite` | empty | Optional `@account` for `twitter:site` |
 | `AllowIndexing` | `true` | Set `false` on staging: `robots.txt` disallows everything and every response sends `X-Robots-Tag: noindex` |
 | `BehindReverseProxy` | `false` | Set `true` behind nginx/a load balancer/a container platform so client IPs (rate limiting) and HTTPS are detected from `X-Forwarded-*` |
+| `TrustedProxies` | `[]` | IP addresses or CIDR networks of your proxies, e.g. `["10.0.0.0/8"]`. With `BehindReverseProxy` on and this list empty, `X-Forwarded-*` is believed from any sender — fine only when the app's port is reachable from the proxy alone |
+
+### `DataProtection`
+
+| Key | Purpose |
+|---|---|
+| `KeysDirectory` | Folder for the ASP.NET Core Data Protection keys that encrypt the contact form's anti-forgery and timing tokens. Leave empty on IIS or a single long-lived server. In containers, point it at a persistent volume (e.g. `/data/keys`) — otherwise every redeploy creates new keys and forms that were open at that moment ask the visitor to send again. Several instances must share the folder |
 
 ### `GoogleAnalytics`
 
@@ -93,7 +103,7 @@ record) also works and needs no setting here.
 | `SubjectPrefix` | `[sql-backup.kaizar.us]` | Prepended to the subject, handy for mail rules |
 | `Smtp:Host` | `smtp.example.com` | SMTP server |
 | `Smtp:Port` | `587` | Usually 587 (STARTTLS) or 465 (implicit TLS) |
-| `Smtp:Security` | `StartTls` | `StartTls`, `SslOnConnect` (port 465), `StartTlsWhenAvailable`, `Auto` or `None` |
+| `Smtp:Security` | `StartTls` | `StartTls`, `SslOnConnect` (port 465), `StartTlsWhenAvailable`, `Auto` or `None` (anything else stops the site at startup) |
 | `Smtp:Username` / `Smtp:Password` | | SMTP login; leave empty for an unauthenticated relay |
 | `Smtp:TimeoutSeconds` | `30` | Connection/send timeout |
 | `PickupDirectory` | empty | When set, messages are saved as `.eml` files in this folder instead of being sent (local testing) |
@@ -124,14 +134,16 @@ the form shows a friendly error instead of failing.
 
 | Key | Default | Purpose |
 |---|---|---|
-| `PermitLimit` | `5` | Messages accepted per IP address per window |
+| `PermitLimit` | `5` | Messages sent per IP address per window. Only messages that are actually sent count — fixing validation errors never locks a visitor out, and a visitor who hits the limit keeps their text |
 | `WindowMinutes` | `15` | Rate-limit window |
 | `MinimumSecondsToSubmit` | `3` | Faster submissions are treated as bots |
 | `MaximumFormAgeHours` | `12` | Older forms ask the visitor to resend |
 
-The form also has a hidden honeypot field and anti-forgery protection. Bots that
-trip the honeypot or the timer see the normal "thank you" page, so they learn
-nothing, but no email is sent.
+The form also has a hidden honeypot field, anti-forgery protection and an email
+address check that matches what the mail library can deliver to. Bots that trip
+the honeypot or the timer see the normal "thank you" page, so they learn
+nothing, but no email is sent. When the form is shown again after an error, the
+timer no longer applies, so an immediate resend always goes through.
 
 ## Deploy
 
@@ -150,7 +162,9 @@ dotnet publish website/SqlBackup.Website -c Release -o out/website
   in *Configuration → Application settings* (e.g. `ContactEmail__Smtp__Password`).
 * **Linux + nginx / Docker / container platforms:** run
   `dotnet SqlBackup.Website.dll` (listens on `ASPNETCORE_URLS`), terminate TLS at
-  the proxy and set `Site:BehindReverseProxy` to `true`.
+  the proxy, set `Site:BehindReverseProxy` to `true` (with `Site:TrustedProxies`
+  unless the app port is private) and point `DataProtection:KeysDirectory` at a
+  persistent volume.
 
 The site sends HSTS and redirects to HTTPS in production. Serve it from exactly
 one host name (`sql-backup.kaizar.us`); if you also own `www.`, redirect it at

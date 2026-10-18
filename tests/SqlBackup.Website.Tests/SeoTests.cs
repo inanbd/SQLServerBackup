@@ -97,6 +97,23 @@ public sealed class SeoTests : IClassFixture<WebsiteFactory>
     }
 
     [Fact]
+    public void Sitemap_dates_are_gregorian_whatever_the_server_culture()
+    {
+        var original = System.Globalization.CultureInfo.CurrentCulture;
+        try
+        {
+            System.Globalization.CultureInfo.CurrentCulture = new System.Globalization.CultureInfo("th-TH");
+            var xml = SeoEndpoints.BuildSitemap(new Options.SiteOptions { BaseUrl = WebsiteFactory.BaseUrl }, new DateTime(2026, 10, 18));
+            Assert.Contains("<lastmod>2026-10-18</lastmod>", xml);
+            Assert.Contains("<priority>1.0</priority>", xml);
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentCulture = original;
+        }
+    }
+
+    [Fact]
     public async Task Robots_txt_points_to_the_sitemap_and_hides_utility_pages()
     {
         var robots = await _factory.CreateClient().GetStringAsync("/robots.txt");
@@ -154,9 +171,14 @@ public sealed class SeoTests : IClassFixture<WebsiteFactory>
     [InlineData("/Features", "/features")]
     [InlineData("/docs/", "/docs")]
     [InlineData("/Docs/Backup-Jobs/?ref=x", "/docs/backup-jobs?ref=x")]
+    [InlineData("//evil.example/", "/evil.example")]
+    [InlineData("/\\evil.example/", "/evil.example")]
+    [InlineData("/%C3%9Cber/", "/%C3%BCber")]
+    [InlineData("/Foo%3Fx/", "/foo%3Fx")]
     public async Task Non_canonical_urls_redirect_permanently(string requested, string expected)
     {
-        using var response = await _factory.CreateNoRedirectClient().GetAsync(requested);
+        // An absolute URI, so "//host/" is sent as a path rather than read as another host.
+        using var response = await _factory.CreateNoRedirectClient().GetAsync(new Uri("http://localhost" + requested));
 
         Assert.Equal(HttpStatusCode.MovedPermanently, response.StatusCode);
         Assert.Equal(expected, response.Headers.Location?.OriginalString);

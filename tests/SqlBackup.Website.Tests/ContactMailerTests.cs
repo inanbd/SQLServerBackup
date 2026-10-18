@@ -63,9 +63,28 @@ public sealed class ContactMailerTests
     [InlineData("StartTls", SecureSocketOptions.StartTls)]
     [InlineData("sslonconnect", SecureSocketOptions.SslOnConnect)]
     [InlineData("None", SecureSocketOptions.None)]
-    [InlineData("nonsense", SecureSocketOptions.StartTls)]
-    public void Smtp_security_setting_is_parsed_leniently(string value, SecureSocketOptions expected) =>
+    public void Smtp_security_names_are_parsed_case_insensitively(string value, SecureSocketOptions expected) =>
         Assert.Equal(expected, SmtpContactMailer.ParseSecurity(value));
+
+    [Theory]
+    [InlineData("SSL")]
+    [InlineData("Tls")]
+    [InlineData("9")]
+    [InlineData("")]
+    public void Unknown_smtp_security_values_are_rejected(string value)
+    {
+        Assert.False(SmtpContactMailer.TryParseSecurity(value, out _));
+        Assert.Throws<InvalidOperationException>(() => SmtpContactMailer.ParseSecurity(value));
+    }
+
+    [Theory]
+    [InlineData("ada@example.com", true)]
+    [InlineData("ada.lovelace+backup@sub.example.co.uk", true)]
+    [InlineData("Ada <ada@example.com>", false)]
+    [InlineData("ada@example,com", false)]
+    [InlineData("ada@@example.com", false)]
+    public void Address_validation_matches_what_mimekit_can_send_to(string address, bool valid) =>
+        Assert.Equal(valid, SmtpContactMailer.IsValidAddress(address));
 
     [Fact]
     public async Task Pickup_directory_receives_an_eml_file_instead_of_smtp()

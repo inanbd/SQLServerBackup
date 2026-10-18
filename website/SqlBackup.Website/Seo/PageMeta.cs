@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using SqlBackup.Website.Infrastructure;
 
 namespace SqlBackup.Website.Seo;
 
@@ -36,6 +37,15 @@ public sealed class PageMeta
 
     /// <summary>Additional schema.org objects rendered as JSON-LD.</summary>
     public List<object> StructuredData { get; } = new();
+
+    /// <summary>Uses an application screenshot (its 2x file) as the social sharing image.</summary>
+    public void UseScreenshotImage(Screenshot shot)
+    {
+        Image = shot.Src2x;
+        ImageAlt = shot.Alt;
+        ImageWidth = shot.Width * 2;
+        ImageHeight = shot.Height * 2;
+    }
 }
 
 public static class PageMetaExtensions
