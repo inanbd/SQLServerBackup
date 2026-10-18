@@ -67,7 +67,9 @@
         <DataGridTextColumn Header="Next run" Binding="{Binding NextRunText}" Width="1.5*" />
         <DataGridTextColumn Header="Last run" Binding="{Binding LastRunText}" Width="*" />
         <DataGridTextColumn Header="Last result" Binding="{Binding LastResultText}" Width="2*" />
-        <DataGridTemplateColumn Header="" Width="Auto">
+        <!-- Fixed width: an Auto column next to star columns is sized while the grid is
+             still empty (before the first status refresh) and never grows, clipping the button. -->
+        <DataGridTemplateColumn Header="" Width="90">
           <DataGridTemplateColumn.CellTemplate>
             <DataTemplate>
               <Button Content="Run now" Padding="8,2" Margin="2"

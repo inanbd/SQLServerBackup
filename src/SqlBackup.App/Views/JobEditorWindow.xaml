@@ -64,7 +64,11 @@
               <ListBox.ItemTemplate>
                 <DataTemplate>
                   <StackPanel Orientation="Horizontal">
-                    <CheckBox IsChecked="{Binding IsSelected}" Content="{Binding Name}" />
+                    <!-- TextBlock content: a plain string would turn '_' into an access key
+                         and show "HR_Payroll" as "HRPayroll". -->
+                    <CheckBox IsChecked="{Binding IsSelected}">
+                      <TextBlock Text="{Binding Name}" />
+                    </CheckBox>
                     <TextBlock Text="{Binding Note}" Foreground="OrangeRed" Margin="8,0,0,0" FontSize="11"
                                VerticalAlignment="Center" />
                   </StackPanel>
