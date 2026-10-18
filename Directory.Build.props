@@ -6,6 +6,8 @@
     <Version>1.0.0</Version>
     <Product>SQL Server Backup Suite</Product>
     <Authors>SqlBackup</Authors>
+    <Copyright>Copyright (c) 2026 inanbd</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <NeutralLanguage>en</NeutralLanguage>
   </PropertyGroup>
 </Project>
