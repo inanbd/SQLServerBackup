@@ -1,0 +1,84 @@
+@page "/sql-server-express-backup"
+@inject IOptions<SiteOptions> SiteOptions
+@{
+    var site = SiteOptions.Value;
+    var meta = ViewData.Meta();
+    meta.Title = "How to Schedule SQL Server Express Backups (No SQL Agent)";
+    meta.AppendSiteName = false;
+    meta.Description = "SQL Server Express has no SQL Agent. Schedule automatic Express backups with retention, verification, off-site copies and alerts, free, in five minutes.";
+    meta.OgType = "article";
+    meta.Breadcrumbs.Add(new("Home", "/"));
+    meta.Breadcrumbs.Add(new("SQL Server Express backup", "/sql-server-express-backup"));
+    meta.StructuredData.Add(StructuredData.TechArticle(site, "How to schedule SQL Server Express backups without SQL Server Agent", meta.Description, "/sql-server-express-backup"));
+}
+
+<section class="page-hero">
+    <div class="container">
+        <partial name="_Breadcrumbs" />
+        <h1>How to schedule SQL Server Express backups without SQL Server Agent</h1>
+        <p class="lead">SQL Server Express is free and capable, but it ships without SQL Server Agent &mdash; so there is no built-in way to run backups on a schedule. Here is how to get automatic, verified and off-site SQL Server Express backups anyway.</p>
+    </div>
+</section>
+
+<div class="container docs">
+    <partial name="_DocsNav" />
+    <article class="prose">
+        <h2 id="problem">Why SQL Server Express backups are not automatic</h2>
+        <p>On Standard and Enterprise edition you would create a maintenance plan or an Agent job. On Express neither exists: the SQL Server Agent service is not included, and the Maintenance Plans node is missing from SQL Server Management Studio. Unless you add something yourself, an Express database is only backed up when someone remembers to right-click it.</p>
+
+        <h2 id="task-scheduler">The usual workaround: a script in Windows Task Scheduler</h2>
+        <p>The common do-it-yourself fix is a batch or PowerShell script that calls <code>sqlcmd</code>, started by Task Scheduler:</p>
+        <pre><code>sqlcmd -S .\SQLEXPRESS -E -Q "BACKUP DATABASE [SalesDB] TO DISK = N'D:\Backups\SalesDB.bak' WITH INIT"</code></pre>
+        <p>It works &mdash; until it doesn't. A typical script:</p>
+        <ul>
+            <li>overwrites the same file every night, or fills the disk because nothing deletes old backups;</li>
+            <li>never notices that a backup failed, because nobody reads the Task Scheduler history;</li>
+            <li>forgets databases that were created after the script was written;</li>
+            <li>keeps the only copy on the same server as the database;</li>
+            <li>stores a SQL password in plain text when Windows authentication isn't an option.</li>
+        </ul>
+
+        <h2 id="solution">The easy way: SQL Server Backup Suite</h2>
+        <p>SQL Server Backup Suite replaces SQL Server Agent for backups. Its Windows service runs the schedule, so it works the same on Express as on Enterprise &mdash; and adds what the scripts lack.</p>
+        <ol>
+            <li><strong><a href="/download">Download</a> and install.</strong> The backup service is registered and started for you.</li>
+            <li><strong>Add a connection</strong> to your Express instance, usually <code>.\SQLEXPRESS</code> or <code>SERVERNAME\SQLEXPRESS</code>, and click <em>Test connection</em>.</li>
+            <li><strong>Click <em>Create dedicated backup login</em></strong> so backups don't depend on the Windows service account (requires mixed-mode authentication), or grant the service account backup rights.</li>
+            <li><strong>Create a job</strong>: <em>AllUserDatabases</em>, type <em>Full</em>, <em>Daily</em> at a quiet time, a destination folder, and <em>KeepLastN</em> retention.</li>
+            <li><strong>Untick <em>Native backup compression</em></strong> &mdash; Express doesn't support it &mdash; keep verification on, and click <em>Save</em>.</li>
+        </ol>
+        <screenshot name="job-editor" caption="A daily full backup of every user database, discovered at run time." />
+        <p>That's it. New databases are picked up automatically, old backups are cleaned up, every file is verified with <code>RESTORE VERIFYONLY</code>, and the dashboard shows the next and last run of every job.</p>
+
+        <h2 id="compare">Task Scheduler script vs. SQL Server Backup Suite</h2>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th scope="col"></th><th scope="col">Script + Task Scheduler</th><th scope="col">SQL Server Backup Suite</th></tr></thead>
+                <tbody>
+                    <tr><th scope="row">Scheduled backups on Express</th><td>Yes</td><td><span class="yes">Yes</span></td></tr>
+                    <tr><th scope="row">New databases included automatically</th><td><span class="no">Only if you script it</span></td><td><span class="yes">Yes</span></td></tr>
+                    <tr><th scope="row">Retention / cleanup of old backups</th><td><span class="no">Only if you script it</span></td><td><span class="yes">Yes, chain-aware</span></td></tr>
+                    <tr><th scope="row">Verification of every backup</th><td><span class="no">Only if you script it</span></td><td><span class="yes">Yes</span></td></tr>
+                    <tr><th scope="row">Off-site copy (NAS, S3, Azure, SFTP, Google Drive)</th><td><span class="no">Only if you script it</span></td><td><span class="yes">Yes</span></td></tr>
+                    <tr><th scope="row">Email / Slack / Teams alerts on failure</th><td><span class="no">Rarely</span></td><td><span class="yes">Yes</span></td></tr>
+                    <tr><th scope="row">Alert when no backup happened</th><td><span class="no">No</span></td><td><span class="yes">Yes (RPO alerts)</span></td></tr>
+                    <tr><th scope="row">History and reports</th><td><span class="no">No</span></td><td><span class="yes">Yes</span></td></tr>
+                    <tr><th scope="row">Encrypted credentials</th><td><span class="no">Usually not</span></td><td><span class="yes">Yes (DPAPI)</span></td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h2 id="express-tips">SQL Server Express backup tips</h2>
+        <ul>
+            <li><strong>Recovery model:</strong> databases inherit the recovery model of <code>model</code>, which is <em>SIMPLE</em> on Express by default. Switch important databases to <em>FULL</em> if you want transaction log backups and point-in-time restores.</li>
+            <li><strong>Compression:</strong> not available on Express. Plan disk space for uncompressed backups, or use the <em>OffsiteOnly</em> storage mode to keep the local disk free.</li>
+            <li><strong>Remote Express instances:</strong> enable TCP/IP in SQL Server Configuration Manager and start the SQL Server Browser service for named instances, or connect with <code>host,port</code>.</li>
+            <li><strong>Folder permissions:</strong> the SQL Server service account (for example <code>NT Service\MSSQL$SQLEXPRESS</code>) writes the backup file and needs write access to the destination.</li>
+            <li><strong>Test a restore</strong> on another machine now and then &mdash; a verified backup is good; a restored one is proof.</li>
+        </ul>
+
+        <h2 id="free">Free for Express &mdash; and for everything else</h2>
+        <p>SQL Server Backup Suite is free and open source under the MIT License, with no edition limits. The same installation can back up Express, Standard and Enterprise instances side by side.</p>
+        <p><a class="btn" href="/download" data-ga-event="download_cta">Download SQL Server Backup Suite</a></p>
+    </article>
+</div>

@@ -1,0 +1,227 @@
+@page "/features"
+@inject IOptions<SiteOptions> SiteOptions
+@{
+    var meta = ViewData.Meta();
+    meta.Title = "SQL Server Backup Features: Scheduling, Retention & Alerts";
+    meta.AppendSiteName = false;
+    meta.Description = "Every feature of SQL Server Backup Suite: schedules, full/differential/log backups, RESTORE VERIFYONLY, chain-aware retention, off-site copies, RPO alerts.";
+    meta.Breadcrumbs.Add(new("Home", "/"));
+    meta.Breadcrumbs.Add(new("Features", "/features"));
+}
+
+<section class="page-hero">
+    <div class="container">
+        <partial name="_Breadcrumbs" />
+        <h1>SQL Server backup features</h1>
+        <p class="lead">A complete backup routine for Microsoft SQL Server &mdash; scheduling, verification, retention, off-site copies, alerts and reporting &mdash; in one free Windows service with a friendly control panel.</p>
+    </div>
+</section>
+
+<div class="container">
+    <nav class="toc" aria-label="On this page">
+        <h2>On this page</h2>
+        <ol>
+            <li><a href="#engine">Backup engine &amp; dashboard</a></li>
+            <li><a href="#connections">Connections &amp; dedicated backup login</a></li>
+            <li><a href="#jobs">Backup jobs &amp; database selection</a></li>
+            <li><a href="#schedules">Schedules</a></li>
+            <li><a href="#verification">Backup options &amp; verification</a></li>
+            <li><a href="#retention">Chain-aware retention</a></li>
+            <li><a href="#offsite">Off-site copies &amp; storage modes</a></li>
+            <li><a href="#monitoring">History &amp; reports</a></li>
+            <li><a href="#alerts">Alerts &amp; RPO monitoring</a></li>
+            <li><a href="#management">Service management &amp; config transfer</a></li>
+            <li><a href="#security">Security &amp; robustness</a></li>
+        </ol>
+    </nav>
+
+    <section class="feature-row" id="engine" aria-labelledby="engine-h">
+        <div class="feature-row__copy">
+            <h2 id="engine-h">A backup engine that runs as a Windows service</h2>
+            <p>Backups run inside <strong>SqlBackupService</strong>, a Windows service that starts with the machine and works with nobody logged in. The control panel talks to it over a local named pipe.</p>
+            <ul class="checklist">
+                <li>Live service health: version, uptime and the Windows account it runs as</li>
+                <li>Next run, last run and last result for every job</li>
+                <li><strong>Run now</strong> for an immediate backup outside the schedule</li>
+                <li>Configuration changes apply instantly &mdash; no service restart</li>
+                <li>Standalone mode runs a job inside the app when the service is stopped</li>
+                <li>Tray icon with quick actions and failure balloons</li>
+            </ul>
+        </div>
+        <screenshot name="dashboard" caption="The dashboard with three jobs that just completed successfully." />
+    </section>
+
+    <section class="feature-row feature-row--reverse feature-row--dialog" id="connections" aria-labelledby="connections-h">
+        <div class="feature-row__copy">
+            <h2 id="connections-h">Connections and a one-click dedicated backup login</h2>
+            <p>Save any number of SQL Server instances (<code>host</code>, <code>host\instance</code> or <code>host,port</code>) with Windows or SQL Server authentication, optional TLS encryption, and a <em>Test connection</em> button that reports the edition and version.</p>
+            <p>Instead of borrowing an administrator account, click <strong>Create dedicated backup login</strong>. The app creates an <code>iSQLBackup_&hellip;</code> login with a strong generated password and only the rights backups need:</p>
+            <ul class="checklist">
+                <li><code>db_backupoperator</code> in every online database</li>
+                <li>Read access to backup history in <code>msdb</code></li>
+                <li><code>CREATE ANY DATABASE</code>, which <code>RESTORE VERIFYONLY</code> requires</li>
+                <li>Re-running it reuses the same login and resets its password &mdash; no clutter</li>
+            </ul>
+        </div>
+        <screenshot name="dedicated-backup-login" caption="A dedicated backup login created and granted on all 10 databases." />
+    </section>
+
+    <section class="feature-row" id="jobs" aria-labelledby="jobs-h">
+        <div class="feature-row__copy">
+            <h2 id="jobs-h">Backup jobs for any mix of databases</h2>
+            <p>A job combines a connection, a set of databases, a backup type, a schedule, a destination, retention and options. Create as many as you need &mdash; for example a nightly full backup, business-hours differentials and transaction log backups every 15 minutes.</p>
+            <ul class="checklist">
+                <li><strong>Explicit list</strong> &mdash; exactly the databases you tick</li>
+                <li><strong>All user databases</strong> or <strong>all databases</strong> (including <code>master</code>, <code>model</code>, <code>msdb</code>) with exclusions, discovered at run time</li>
+                <li><strong>Full</strong>, <strong>Differential</strong> or <strong>Transaction log</strong> backups</li>
+                <li>Local folder or UNC path, optional subfolder per database</li>
+                <li>Timestamped names such as <code>SalesDB_Full_20261018_013000.bak</code></li>
+                <li>Enable, disable and run jobs from the list</li>
+            </ul>
+        </div>
+        <screenshot name="backup-jobs" caption="Five jobs: nightly full, business-hours differentials, 30-minute log backups, a weekly copy-only job and a disabled archive job." />
+    </section>
+
+    <section class="feature-row feature-row--reverse feature-row--dialog" id="schedules" aria-labelledby="schedules-h">
+        <div class="feature-row__copy">
+            <h2 id="schedules-h">Schedules that fit your recovery point objective</h2>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th scope="col">Schedule</th><th scope="col">Example</th></tr></thead>
+                    <tbody>
+                        <tr><td>Interval</td><td>Every 15 minutes for transaction log backups</td></tr>
+                        <tr><td>Daily</td><td>Every day at 01:30 for full backups</td></tr>
+                        <tr><td>Weekly</td><td>Sunday at 03:00 for a copy-only archive</td></tr>
+                        <tr><td>Cron</td><td><code>0 8-18/2 * * 1-5</code> &mdash; every two hours on weekdays</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <ul class="checklist">
+                <li><strong>Preview schedule</strong> shows the next occurrences before you save</li>
+                <li>Local time with correct daylight-saving handling</li>
+                <li>A job never overlaps itself; a run due while it is still running is skipped</li>
+                <li>Optional catch-up: one run at startup if the service was off at the due time</li>
+            </ul>
+        </div>
+        <screenshot name="job-editor" caption="All user databases except Reporting_Staging, every night at 01:30, with a preview of the next three runs." />
+    </section>
+
+    <section class="feature-row feature-row--dialog" id="verification" aria-labelledby="verification-h">
+        <div class="feature-row__copy">
+            <h2 id="verification-h">Backup options and verification</h2>
+            <p>Each job decides how its backups are written and checked:</p>
+            <ul class="checklist">
+                <li><strong>RESTORE VERIFYONLY</strong> after each backup, so an unreadable file is caught the night it is written</li>
+                <li><strong>WITH CHECKSUM</strong> page checksums</li>
+                <li><strong>Native compression</strong> (Standard, Enterprise and Developer editions)</li>
+                <li><strong>COPY_ONLY</strong> backups that leave the regular backup chain untouched</li>
+                <li><strong>Automatic full backup</strong> when a differential or log backup has no base yet</li>
+                <li>A guard that explains why log backups are impossible for databases in the SIMPLE recovery model</li>
+            </ul>
+        </div>
+        <screenshot name="job-editor-options" caption="Destination, retention, off-site copy, RPO alert and backup options of a job." />
+    </section>
+
+    <section class="section--tight" id="retention" aria-labelledby="retention-h">
+        <h2 id="retention-h">Chain-aware retention that never strands a backup</h2>
+        <div class="grid grid--3">
+            <div class="card">
+                <h3>Three policies</h3>
+                <p><strong>Keep everything</strong>, <strong>keep the last N</strong> backups per database, or <strong>delete after X days</strong>. Local and off-site copies each have their own policy.</p>
+            </div>
+            <div class="card">
+                <h3>Restore chains stay intact</h3>
+                <p>A full backup is never deleted while surviving differential or log backups still depend on it, so every backup you keep can actually be restored.</p>
+            </div>
+            <div class="card">
+                <h3>Safe by design</h3>
+                <p>Only files that match this tool's naming pattern for that database and type are ever touched, and the newest backup always survives.</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="offsite" aria-labelledby="offsite-h">
+        <div class="feature-row feature-row--reverse">
+            <div class="feature-row__copy">
+                <h2 id="offsite-h">Off-site copies and storage modes</h2>
+                <p>After a successful local backup, the file is copied to an off-site destination with retries. Supported destinations:</p>
+                <ul class="checklist">
+                    <li>Windows file share (SMB/UNC), optionally with its own credentials</li>
+                    <li>Amazon S3 and S3-compatible storage (MinIO, Backblaze B2, Wasabi&hellip;)</li>
+                    <li>Azure Blob Storage with a SAS token</li>
+                    <li>SFTP servers</li>
+                    <li>Google Drive with a user account or a service account and Shared Drive</li>
+                </ul>
+                <p>Choose a <strong>storage mode</strong> per job: <em>local only</em>, <em>local + off-site</em> (both copies, each with its own retention) or <em>off-site only</em>, where the local folder is staging and is cleaned up after a successful upload. A failed upload always keeps the local file, so a run never ends without a copy.</p>
+            </div>
+            <screenshot name="offsite-destinations" caption="Five off-site destinations: S3, Azure Blob, SFTP, Google Drive and a NAS share." />
+        </div>
+        <div class="grid grid--3">
+            <screenshot name="offsite-smb-share" caption="Windows file share: tested successfully." />
+            <screenshot name="offsite-amazon-s3" caption="Amazon S3 bucket and region." />
+            <screenshot name="offsite-google-drive" caption="Google Drive authorized once in the app." />
+        </div>
+    </section>
+
+    <section id="monitoring" aria-labelledby="monitoring-h">
+        <div class="feature-row">
+            <div class="feature-row__copy">
+                <h2 id="monitoring-h">History and reports</h2>
+                <p>Every backup attempt is recorded per database: start time, type, trigger, duration, size, file path, verification result, retention actions, off-site upload and &mdash; on failure &mdash; the real SQL Server error with a hint on how to fix it.</p>
+                <ul class="checklist">
+                    <li>Filter history by job, select a run to see every detail</li>
+                    <li>30-day success rate, run and failure counts</li>
+                    <li>Current full-backup footprint and bytes written</li>
+                    <li>Per-database size trend for the last 14 days and growth percentage</li>
+                    <li>Average and maximum durations</li>
+                </ul>
+            </div>
+            <screenshot name="history" caption="A verified full backup of SalesDB, copied to the NAS." />
+        </div>
+        <screenshot name="reports" caption="Reports: 99.8% success over 964 runs, with size trends per database." />
+    </section>
+
+    <section class="feature-row feature-row--reverse" id="alerts" aria-labelledby="alerts-h">
+        <div class="feature-row__copy">
+            <h2 id="alerts-h">Alerts and RPO monitoring</h2>
+            <p>Send results through any combination of channels, each with a test button:</p>
+            <ul class="checklist">
+                <li><strong>Email</strong> through any SMTP server, with TLS</li>
+                <li><strong>Webhook</strong> JSON whose payload works with Slack, Microsoft Teams and Discord out of the box</li>
+                <li><strong>Windows Event Log</strong> (source <code>SqlBackup</code>) for your existing monitoring</li>
+                <li>Alert on failures only, or after every run</li>
+            </ul>
+            <p><strong>RPO alerts</strong> watch the outcome instead of the schedule: &ldquo;alert when there is no successful backup for N hours&rdquo;. They fire even when a job is disabled, the schedule is broken or the scheduler is stopped, appear on the dashboard and repeat daily until resolved.</p>
+        </div>
+        <screenshot name="settings-notifications" caption="Email, webhook and Event Log alerts, plus configuration export and import." />
+    </section>
+
+    <section class="feature-row" id="management" aria-labelledby="management-h">
+        <div class="feature-row__copy">
+            <h2 id="management-h">Service management and configuration transfer</h2>
+            <ul class="checklist">
+                <li>Install, start, stop and uninstall the service from the app (with a UAC prompt)</li>
+                <li>Install copies the service to <code>Program Files\SqlBackup\Service</code> and configures automatic restart after a crash</li>
+                <li>Open the data folder and logs with one click</li>
+                <li><strong>Export</strong> the whole configuration to JSON and <strong>import</strong> it on another server; secrets are never exported and the import lists exactly which credentials to re-enter</li>
+            </ul>
+        </div>
+        <screenshot name="settings-service" caption="The service installed and running, managed from the Settings page." />
+    </section>
+
+    <section class="section--tight" id="security" aria-labelledby="security-h">
+        <h2 id="security-h">Security and robustness</h2>
+        <div class="grid grid--2">
+            <div class="card">
+                <h3>Secrets are encrypted</h3>
+                <p>SQL, SMTP and cloud credentials are encrypted with Windows DPAPI and never written in plain text. The named pipe is local-only: authenticated users may query status and start configured jobs; administrators have full control.</p>
+            </div>
+            <div class="card">
+                <h3>Built to keep going</h3>
+                <p>Connection retries with exponential backoff, a service that keeps the last good configuration if a new one is broken, automatic restart after a crash, and upload failures that never invalidate the local backup.</p>
+            </div>
+        </div>
+    </section>
+</div>
+
+<partial name="_DownloadCta" />

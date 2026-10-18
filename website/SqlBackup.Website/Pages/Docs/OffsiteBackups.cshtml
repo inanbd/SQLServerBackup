@@ -1,0 +1,150 @@
+@page "/docs/off-site-backups"
+@inject IOptions<SiteOptions> SiteOptions
+@{
+    var site = SiteOptions.Value;
+    var meta = ViewData.Meta();
+    meta.Title = "Back Up SQL Server to S3, Azure, Google Drive, SFTP & SMB";
+    meta.AppendSiteName = false;
+    meta.Description = "Copy SQL Server backups off-site automatically: setup guides for network shares, Amazon S3, S3-compatible storage, Azure Blob Storage, SFTP and Google Drive.";
+    meta.OgType = "article";
+    meta.Image = Screenshots.Get("offsite-destinations").Src2x;
+    meta.ImageAlt = Screenshots.Get("offsite-destinations").Alt;
+    meta.ImageWidth = 2290;
+    meta.ImageHeight = 1418;
+    meta.Breadcrumbs.Add(new("Home", "/"));
+    meta.Breadcrumbs.Add(new("Docs", "/docs"));
+    meta.Breadcrumbs.Add(new("Off-site backups", "/docs/off-site-backups"));
+    meta.StructuredData.Add(StructuredData.TechArticle(site, "Off-site SQL Server backups to S3, Azure, Google Drive, SFTP and SMB", meta.Description, "/docs/off-site-backups"));
+}
+
+<section class="page-hero">
+    <div class="container">
+        <partial name="_Breadcrumbs" />
+        <h1>Off-site backups</h1>
+        <p class="lead">A backup that lives on the same server as the database is not a backup plan. Copy every SQL Server backup to a NAS, Amazon S3, Azure Blob Storage, an SFTP server or Google Drive &mdash; automatically.</p>
+    </div>
+</section>
+
+<div class="container docs">
+    <partial name="_DocsNav" />
+    <article class="prose">
+        <nav class="toc" aria-label="On this page">
+            <h2>On this page</h2>
+            <ol>
+                <li><a href="#how">How off-site copies work</a></li>
+                <li><a href="#storage-modes">Storage modes</a></li>
+                <li><a href="#add">Add a destination and attach it to a job</a></li>
+                <li><a href="#smb">Windows file share (SMB)</a></li>
+                <li><a href="#s3">Amazon S3 and S3-compatible storage</a></li>
+                <li><a href="#azure">Azure Blob Storage</a></li>
+                <li><a href="#sftp">SFTP</a></li>
+                <li><a href="#google-drive">Google Drive</a></li>
+                <li><a href="#failures">When an upload fails</a></li>
+            </ol>
+        </nav>
+
+        <h2 id="how">How off-site copies work</h2>
+        <ol>
+            <li>SQL Server writes the backup to the job's destination folder, and it is verified there.</li>
+            <li>The file is uploaded to the job's off-site destination, with retries.</li>
+            <li>Off-site retention runs on the remote side &mdash; chain-aware, just like local retention.</li>
+            <li>Depending on the storage mode, the local file is kept or removed.</li>
+        </ol>
+        <p>Remote files are organised as <code>{prefix}/{database}/{file name}</code> when <em>Subfolder per database</em> is on, for example <code>sql01/SalesDB/SalesDB_Full_20261018_013000.bak</code>. The optional <strong>Key prefix</strong> keeps several servers apart in one bucket or share.</p>
+
+        <h2 id="storage-modes">Storage modes</h2>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th scope="col">Keep backups</th><th scope="col">Behavior</th></tr></thead>
+                <tbody>
+                    <tr><td><strong>LocalAndOffsite</strong></td><td>Both copies are kept, each with its own retention policy. The safest choice: fast local restores plus a copy that survives the loss of the server.</td></tr>
+                    <tr><td><strong>LocalOnly</strong></td><td>No upload, even if a destination is selected.</td></tr>
+                    <tr><td><strong>OffsiteOnly</strong></td><td>The destination folder is only staging: after a successful upload the local file is deleted. A failed upload always keeps the local file, so a run never ends without a copy.</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h2 id="add">Add a destination and attach it to a job</h2>
+        <ol>
+            <li>Open <strong>Off-site</strong> and click <strong>Add&hellip;</strong>.</li>
+            <li>Enter a <strong>Display name</strong>, pick the <strong>Kind</strong> and, optionally, a <strong>Key prefix</strong>.</li>
+            <li>Fill in the kind-specific settings described below and click <strong>Test destination</strong>.</li>
+            <li>Click <strong>Save</strong>. Secrets (passwords, keys, tokens) are encrypted with DPAPI.</li>
+            <li>Edit a backup job and, under <strong>Storage &amp; off-site copy</strong>, choose the <strong>Destination</strong>, the <strong>Keep backups</strong> mode and the <strong>Off-site retention</strong>.</li>
+        </ol>
+        <screenshot name="offsite-destinations" caption="The Off-site page with one destination of each kind." />
+
+        <h2 id="smb">Windows file share (SMB)</h2>
+        <p>Use any UNC path such as <code>\\nas01\sql-offsite</code> &mdash; a NAS, a file server or a share at another site. A local or mapped path also works.</p>
+        <ul>
+            <li>Leave <strong>User</strong> empty to access the share as the account the backup service runs as. For the default <em>LocalSystem</em> account that is the computer account (<code>DOMAIN\SERVER$</code>), so grant the computer write access to the share.</li>
+            <li>Or enter <code>DOMAIN\user</code> and a password to connect with dedicated credentials.</li>
+        </ul>
+        <screenshot name="offsite-smb-share" caption="A NAS share tested successfully." />
+
+        <h2 id="s3">Amazon S3 and S3-compatible storage</h2>
+        <ol>
+            <li>Create a bucket, ideally with versioning or Object Lock if you want protection against deletion.</li>
+            <li>Create an IAM user with an access key, limited to that bucket (policy below).</li>
+            <li>Enter <strong>Bucket</strong>, <strong>Region</strong> (e.g. <code>eu-west-1</code>), <strong>Access key id</strong> and <strong>Secret access key</strong>.</li>
+        </ol>
+        <pre><code>{
+  "Version": "2012-10-17",
+  "Statement": [
+    { "Effect": "Allow", "Action": "s3:ListBucket", "Resource": "arn:aws:s3:::your-bucket" },
+    { "Effect": "Allow", "Action": [ "s3:PutObject", "s3:DeleteObject" ], "Resource": "arn:aws:s3:::your-bucket/*" }
+  ]
+}</code></pre>
+        <p><code>s3:DeleteObject</code> is only needed when off-site retention deletes old backups; leave it out (and set retention to <em>KeepAll</em>) for an append-only bucket managed by lifecycle rules.</p>
+        <p><strong>S3-compatible services</strong> (MinIO, Backblaze B2, Wasabi, Cloudflare R2 and others): enter the service's URL as <strong>Custom endpoint</strong> and tick <strong>Path-style</strong> if the provider requires it; the region is then ignored.</p>
+        <screenshot name="offsite-amazon-s3" caption="An Amazon S3 destination." />
+
+        <h2 id="azure">Azure Blob Storage</h2>
+        <ol>
+            <li>In the Azure portal, open the storage account, create a container (for example <code>sql-backups</code>).</li>
+            <li>On the container, open <strong>Shared access tokens</strong> and create a SAS with the <strong>Create</strong>, <strong>Write</strong>, <strong>List</strong> and <strong>Delete</strong> permissions and a long expiry date.</li>
+            <li>Paste the <strong>Container URL</strong> (<code>https://account.blob.core.windows.net/container</code>) and the <strong>SAS token</strong>.</li>
+        </ol>
+        <div class="callout callout--warning">
+            <strong>Put the SAS expiry date in your calendar.</strong>
+            <p>When the token expires, uploads fail and you get an off-site failure alert. Create a new token and paste it into the destination before that happens.</p>
+        </div>
+
+        <h2 id="sftp">SFTP</h2>
+        <p>Enter <strong>Host</strong>, <strong>Port</strong> (22 by default), <strong>Username</strong>, <strong>Password</strong> and a <strong>Remote path</strong> such as <code>/srv/backups/sql</code>. Folders below the remote path are created as needed. Use a dedicated account that can only write to that directory.</p>
+
+        <h2 id="google-drive">Google Drive</h2>
+        <p>Google Drive requires one OAuth consent that a Windows service cannot show, so authorization happens once in the control panel and the service reuses the result. Choose how to sign in:</p>
+        <h3>User account (personal Gmail or Google Workspace &ldquo;My Drive&rdquo;)</h3>
+        <ol>
+            <li>In <a href="https://console.cloud.google.com/" rel="noopener">Google Cloud Console</a>, create or pick a project.</li>
+            <li><em>APIs &amp; Services &rarr; Library</em>: enable the <strong>Google Drive API</strong>.</li>
+            <li><em>APIs &amp; Services &rarr; OAuth consent screen</em>: configure it (External is fine for a personal account) and add your Google account as a user.</li>
+            <li><em>APIs &amp; Services &rarr; Credentials &rarr; Create credentials &rarr; OAuth client ID</em>, application type <strong>Desktop app</strong>.</li>
+            <li>Copy the <strong>Client ID</strong> (<code>&hellip;apps.googleusercontent.com</code>) and the <strong>Client secret</strong> (<code>GOCSPX-&hellip;</code>) into the destination. These are not your email address and password.</li>
+            <li>Click <strong>Authorize with Google&hellip;</strong>; a browser opens once. Only the resulting refresh token is stored, encrypted.</li>
+            <li>Paste the <strong>Folder ID</strong> &mdash; the last part of the Drive folder's URL (<code>&hellip;/folders/THIS_PART</code>).</li>
+        </ol>
+        <div class="callout callout--warning">
+            <strong>Publish the OAuth consent screen.</strong>
+            <p>While the consent screen is in <em>Testing</em> status, Google revokes refresh tokens after 7 days and uploads silently stop. Move it to <em>In production</em>.</p>
+        </div>
+        <h3>Service account (unattended, Google Workspace)</h3>
+        <p>Create a service account with the Drive API enabled, download its JSON key and click <strong>Load service account key (JSON)&hellip;</strong>. A service account has no Drive storage of its own, so the folder must be in a <strong>Shared Drive</strong> that the service account's address was added to; a shared &ldquo;My Drive&rdquo; folder fails with a storage-quota error.</p>
+        <screenshot name="offsite-google-drive" caption="A Google Drive destination authorized with a user account." />
+        <p>Google Drive is convenient, but it is not built for backup throughput. For large databases, a file share, S3 or Azure Blob Storage is considerably faster to upload to and restore from.</p>
+
+        <h2 id="failures">When an upload fails</h2>
+        <ul>
+            <li>The run is marked <em>off-site failed</em> and alerts are sent, but the local backup still counts as a success.</li>
+            <li>History shows the exact error and how many attempts were made.</li>
+            <li>In <em>OffsiteOnly</em> mode the local file is kept &mdash; it is the only copy until the next successful upload.</li>
+            <li>The Reports page counts off-site failures, so a destination that keeps failing is visible at a glance.</li>
+        </ul>
+
+        <div class="docs-pager">
+            <a href="/docs/backup-jobs"><small>Previous</small>&larr; Backup jobs &amp; schedules</a>
+            <a href="/docs/monitoring-and-alerts"><small>Next</small>Monitoring &amp; alerts &rarr;</a>
+        </div>
+    </article>
+</div>

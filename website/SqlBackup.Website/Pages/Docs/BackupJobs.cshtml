@@ -1,0 +1,156 @@
+@page "/docs/backup-jobs"
+@inject IOptions<SiteOptions> SiteOptions
+@{
+    var site = SiteOptions.Value;
+    var meta = ViewData.Meta();
+    meta.Title = "SQL Server Backup Jobs: Full, Differential & Log Schedules";
+    meta.AppendSiteName = false;
+    meta.Description = "Configure SQL Server backup jobs: pick databases, mix full, differential and transaction log backups, schedule with cron, set retention and verify every file.";
+    meta.OgType = "article";
+    meta.Image = Screenshots.Get("job-editor").Src2x;
+    meta.ImageAlt = Screenshots.Get("job-editor").Alt;
+    meta.ImageWidth = 1350;
+    meta.ImageHeight = 1458;
+    meta.Breadcrumbs.Add(new("Home", "/"));
+    meta.Breadcrumbs.Add(new("Docs", "/docs"));
+    meta.Breadcrumbs.Add(new("Backup jobs & schedules", "/docs/backup-jobs"));
+    meta.StructuredData.Add(StructuredData.TechArticle(site, "SQL Server backup jobs, schedules and retention", meta.Description, "/docs/backup-jobs"));
+}
+
+<section class="page-hero">
+    <div class="container">
+        <partial name="_Breadcrumbs" />
+        <h1>Backup jobs &amp; schedules</h1>
+        <p class="lead">How to choose databases, combine full, differential and transaction log backups, schedule them, keep the right number of files and verify every backup.</p>
+    </div>
+</section>
+
+<div class="container docs">
+    <partial name="_DocsNav" />
+    <article class="prose">
+        <nav class="toc" aria-label="On this page">
+            <h2>On this page</h2>
+            <ol>
+                <li><a href="#databases">Choosing databases</a></li>
+                <li><a href="#types">Backup types</a></li>
+                <li><a href="#log-backups">A point-in-time recovery strategy</a></li>
+                <li><a href="#schedules">Schedules</a></li>
+                <li><a href="#destination">Destination and file names</a></li>
+                <li><a href="#retention">Retention</a></li>
+                <li><a href="#options">Backup options</a></li>
+                <li><a href="#running">Running, enabling and disabling jobs</a></li>
+            </ol>
+        </nav>
+
+        <p>Open <strong>Backup Jobs</strong> to see every job with its connection, databases, type, schedule, destination, storage mode and retention. <strong>Add&hellip;</strong> creates a job, <strong>Edit&hellip;</strong> (or a double-click) changes one.</p>
+        <screenshot name="backup-jobs" caption="The Backup Jobs page." />
+
+        <h2 id="databases">Choosing databases</h2>
+        <p>The <strong>Selection</strong> setting decides which databases a job backs up:</p>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th scope="col">Selection</th><th scope="col">Backs up</th><th scope="col">Best for</th></tr></thead>
+                <tbody>
+                    <tr><td><strong>Explicit</strong></td><td>Exactly the databases you tick</td><td>Log backups, or a few critical databases on their own schedule</td></tr>
+                    <tr><td><strong>AllUserDatabases</strong></td><td>Every online user database at run time, minus the ones you tick as exclusions</td><td>Nightly full backups &mdash; new databases are protected automatically</td></tr>
+                    <tr><td><strong>AllDatabases</strong></td><td>Like AllUserDatabases plus <code>master</code>, <code>model</code> and <code>msdb</code></td><td>A complete server backup including logins, jobs and settings</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <p>Click <strong>Load databases from server</strong> to list what is on the server. In the discovery modes, ticking a database <em>excludes</em> it. You can also type a name and click <strong>Add database by name</strong> when the server is unreachable while you configure.</p>
+
+        <h2 id="types">Backup types</h2>
+        <ul>
+            <li><strong>Full</strong> &mdash; the whole database. Every restore starts with a full backup.</li>
+            <li><strong>Differential</strong> &mdash; everything changed since the last full backup. Restore the full backup, then the newest differential.</li>
+            <li><strong>Transaction log</strong> &mdash; the log since the previous log backup. Enables point-in-time restores and keeps the log file from growing. Requires the <em>FULL</em> or <em>BULK_LOGGED</em> recovery model.</li>
+        </ul>
+        <p>If a differential or log backup is due but the database has no full backup yet, <strong>Take a full backup automatically when differential/log has no base</strong> takes a full backup instead of failing. A log backup job on a database in the <em>SIMPLE</em> recovery model fails with a clear explanation instead of a cryptic SQL error.</p>
+
+        <h2 id="log-backups">A point-in-time recovery strategy</h2>
+        <p>A common pattern for production databases uses three jobs on the same connection:</p>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th scope="col">Job</th><th scope="col">Type</th><th scope="col">Schedule</th><th scope="col">Retention</th></tr></thead>
+                <tbody>
+                    <tr><td>Nightly full backup</td><td>Full</td><td>Daily at 01:30</td><td>Keep last 14</td></tr>
+                    <tr><td>Business-hours differentials</td><td>Differential</td><td>Cron <code>0 8-18/2 * * 1-5</code></td><td>Delete after 7 days</td></tr>
+                    <tr><td>Transaction logs</td><td>Transaction log</td><td>Every 15 or 30 minutes</td><td>Delete after 3 days</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <p>With this setup you can restore to any moment of the last few days, losing at most one log interval of work. Databases in the SIMPLE recovery model get full and differential backups only.</p>
+
+        <h2 id="schedules">Schedules</h2>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th scope="col">Kind</th><th scope="col">Settings</th><th scope="col">Notes</th></tr></thead>
+                <tbody>
+                    <tr><td><strong>Interval</strong></td><td>Every N minutes</td><td>Anchored to the previous run, ideal for log backups</td></tr>
+                    <tr><td><strong>Daily</strong></td><td>Time of day (24h, e.g. <code>02:30</code>)</td><td>Local time of the backup machine</td></tr>
+                    <tr><td><strong>Weekly</strong></td><td>Days of the week and a time</td><td>For example Sunday at 03:00</td></tr>
+                    <tr><td><strong>Cron</strong></td><td>Five fields: minute hour day month weekday</td><td>A sixth leading field for seconds is accepted</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <h3>Cron examples</h3>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th scope="col">Expression</th><th scope="col">Runs</th></tr></thead>
+                <tbody>
+                    <tr><td><code>0 2 * * *</code></td><td>Every day at 02:00</td></tr>
+                    <tr><td><code>*/15 * * * *</code></td><td>Every 15 minutes</td></tr>
+                    <tr><td><code>0 8-18/2 * * 1-5</code></td><td>Every two hours from 08:00 to 18:00, Monday to Friday</td></tr>
+                    <tr><td><code>30 23 * * 5</code></td><td>Fridays at 23:30</td></tr>
+                    <tr><td><code>0 4 1 * *</code></td><td>The first day of every month at 04:00</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <ul>
+            <li>Click <strong>Preview schedule</strong> to see the next occurrences before saving.</li>
+            <li>Times are local; daylight-saving changes are handled correctly.</li>
+            <li>A job never overlaps itself: an occurrence that comes due while the job is still running is skipped, not queued.</li>
+            <li><strong>If the service was off when a run was due, catch up once at startup</strong> runs a missed occurrence exactly once when the service starts again.</li>
+        </ul>
+
+        <h2 id="destination">Destination and file names</h2>
+        <p>Enter a local folder (<code>D:\SqlBackups</code>) or a UNC path (<code>\\nas\sql-backups</code>) and click <strong>Validate destination</strong>. With <strong>Subfolder per database</strong> each database gets its own folder. Files are named</p>
+        <pre><code>{Database}_{Full|Diff|Log}_{yyyyMMdd_HHmmss}.bak    (.trn for log backups)</code></pre>
+        <p>Remember that SQL Server itself writes the file, so the path is resolved on the SQL Server machine. Remote servers need a share both machines can reach &mdash; see <a href="/docs#where">where backups are stored</a>.</p>
+
+        <h2 id="retention">Retention</h2>
+        <ul>
+            <li><strong>KeepAll</strong> &mdash; never delete anything.</li>
+            <li><strong>KeepLastN</strong> &mdash; keep the newest N backups per database and type.</li>
+            <li><strong>MaxAgeDays</strong> &mdash; delete backups older than N days.</li>
+        </ul>
+        <p>Retention is <strong>chain-aware</strong>: a full backup is kept as long as newer differential or log backups on disk depend on it, so you never end up with files you cannot restore. Only files matching this tool's naming pattern for that database and backup type are considered, and the newest backup is always kept. Off-site copies have their own retention policy &mdash; see <a href="/docs/off-site-backups#storage-modes">storage modes</a>.</p>
+        <screenshot name="job-editor-options" caption="Destination, retention, off-site copy, RPO monitoring and options." />
+
+        <h2 id="options">Backup options</h2>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th scope="col">Option</th><th scope="col">What it does</th></tr></thead>
+                <tbody>
+                    <tr><td>Verify backup after completion</td><td>Runs <code>RESTORE VERIFYONLY</code> against the new file. Strongly recommended.</td></tr>
+                    <tr><td>Page checksums</td><td>Adds <code>WITH CHECKSUM</code>: SQL Server validates pages while reading them.</td></tr>
+                    <tr><td>Native backup compression</td><td><code>WITH COMPRESSION</code> &mdash; smaller, often faster backups. Not available on Express edition.</td></tr>
+                    <tr><td>Copy-only</td><td><code>WITH COPY_ONLY</code> for full and log backups: an extra backup that does not change the regular backup chain.</td></tr>
+                    <tr><td>Take a full backup automatically</td><td>Falls back to a full backup when a differential or log backup has no base.</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h2 id="running">Running, enabling and disabling jobs</h2>
+        <ul>
+            <li><strong>Run now</strong> (on the dashboard or the jobs page) asks the service to run the job immediately.</li>
+            <li>When the service is not reachable, <strong>Run now</strong> on the Backup Jobs page offers to run the job <em>standalone</em>, inside the app, using your Windows account. The run is recorded in the same history.</li>
+            <li><strong>Enable/Disable</strong> pauses a job without deleting it. An RPO alert on a disabled job still fires, so a forgotten job does not go unnoticed.</li>
+        </ul>
+
+        <div class="docs-pager">
+            <a href="/docs"><small>Previous</small>&larr; Getting started</a>
+            <a href="/docs/off-site-backups"><small>Next</small>Off-site backups &rarr;</a>
+        </div>
+    </article>
+</div>

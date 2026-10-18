@@ -1,0 +1,25 @@
+@inject IOptions<GoogleAnalyticsOptions> Analytics
+@inject CspNonce Nonce
+@{
+    var ga = Analytics.Value;
+}
+@if (ga.Enabled)
+{
+    @* Consent Mode v2: the defaults must be set before gtag.js loads. With RequireConsent,
+       analytics storage stays denied (cookieless pings only) until the visitor accepts. *@
+    <script nonce="@Nonce.Value">
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('consent', 'default', {
+            ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied',
+            analytics_storage: '@(ga.RequireConsent ? "denied" : "granted")'
+        });
+        @if (ga.RequireConsent)
+        {
+            @:try { if (localStorage.getItem('sqlbackup-consent') === 'granted') gtag('consent', 'update', { analytics_storage: 'granted' }); } catch (e) {}
+        }
+        gtag('js', new Date());
+        gtag('config', '@ga.MeasurementId');
+    </script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=@ga.MeasurementId" nonce="@Nonce.Value"></script>
+}

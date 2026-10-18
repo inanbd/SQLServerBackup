@@ -1,0 +1,153 @@
+@inject IOptions<SiteOptions> SiteOptions
+@inject IOptions<SearchConsoleOptions> SearchConsole
+@inject CspNonce Nonce
+@{
+    var site = SiteOptions.Value;
+    var meta = ViewData.Meta();
+    var title = meta.AppendSiteName ? $"{meta.Title} | {site.Name}" : meta.Title;
+    var path = (Context.Request.Path.Value ?? "/").ToLowerInvariant().TrimEnd('/');
+    if (path.Length == 0) path = "/";
+    var canonical = site.AbsoluteUrl(path);
+    var image = site.AbsoluteUrl(meta.Image);
+    var noIndex = meta.NoIndex || !site.AllowIndexing;
+    var twitterSite = site.TwitterSite.Trim();
+    if (twitterSite.Length > 0 && !twitterSite.StartsWith('@')) twitterSite = "@" + twitterSite;
+
+    string Current(string prefix) =>
+        (prefix == "/" ? path == "/" : path == prefix || path.StartsWith(prefix + "/")) ? "page" : "false";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script nonce="@Nonce.Value">document.documentElement.classList.add('js')</script>
+    <title>@title</title>
+    <meta name="description" content="@meta.Description">
+    <meta name="robots" content="@(noIndex ? "noindex, follow" : "index, follow, max-image-preview:large, max-snippet:-1")">
+    @if (!noIndex)
+    {
+        <link rel="canonical" href="@canonical">
+    }
+    @if (!string.IsNullOrWhiteSpace(SearchConsole.Value.VerificationToken))
+    {
+        <meta name="google-site-verification" content="@SearchConsole.Value.VerificationToken.Trim()">
+    }
+    <meta property="og:site_name" content="@site.Name">
+    <meta property="og:type" content="@meta.OgType">
+    <meta property="og:title" content="@meta.Title">
+    <meta property="og:description" content="@meta.Description">
+    <meta property="og:url" content="@canonical">
+    <meta property="og:image" content="@image">
+    <meta property="og:image:width" content="@meta.ImageWidth">
+    <meta property="og:image:height" content="@meta.ImageHeight">
+    <meta property="og:image:alt" content="@meta.ImageAlt">
+    <meta property="og:locale" content="en_US">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="@meta.Title">
+    <meta name="twitter:description" content="@meta.Description">
+    <meta name="twitter:image" content="@image">
+    <meta name="twitter:image:alt" content="@meta.ImageAlt">
+    @if (twitterSite.Length > 0)
+    {
+        <meta name="twitter:site" content="@twitterSite">
+    }
+    <meta name="theme-color" content="#1d2b3a">
+    <meta name="color-scheme" content="light dark">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <link rel="sitemap" type="application/xml" href="/sitemap.xml">
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true">
+    @await RenderSectionAsync("Head", required: false)
+    <partial name="_GoogleAnalytics" />
+    @if (meta.Breadcrumbs.Count > 0)
+    {
+        @StructuredData.Script(StructuredData.Breadcrumbs(site, meta.Breadcrumbs), Nonce.Value)
+    }
+    @foreach (var data in meta.StructuredData)
+    {
+        @StructuredData.Script(data, Nonce.Value)
+    }
+</head>
+<body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+        <div class="container site-header__inner">
+            <a class="brand" href="/" aria-label="@site.Name home">
+                <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true"><use href="/img/icons.svg#logo"></use></svg>
+                <span class="brand__name">SQL Server <strong>Backup</strong></span>
+            </a>
+            <button class="nav-toggle" type="button" aria-controls="site-nav" aria-expanded="false" aria-label="Open menu" data-nav-toggle>
+                <span></span><span></span><span></span>
+            </button>
+            <nav id="site-nav" class="site-nav" aria-label="Main">
+                <a href="/features" aria-current="@Current("/features")">Features</a>
+                <a href="/sql-server-express-backup" aria-current="@Current("/sql-server-express-backup")">SQL Express</a>
+                <a href="/docs" aria-current="@Current("/docs")">Docs</a>
+                <a href="/faq" aria-current="@Current("/faq")">FAQ</a>
+                <a href="/contact" aria-current="@Current("/contact")">Contact</a>
+                <a class="site-nav__github" href="@site.RepositoryUrl" rel="noopener" aria-label="Source code on GitHub">
+                    <svg viewBox="0 0 16 16" aria-hidden="true"><use href="/img/icons.svg#github"></use></svg><span>GitHub</span>
+                </a>
+                <a class="btn btn--small" href="/download" aria-current="@Current("/download")">Download</a>
+            </nav>
+        </div>
+    </header>
+
+    <main id="main">
+        @RenderBody()
+    </main>
+
+    <footer class="site-footer">
+        <div class="container site-footer__grid">
+            <div class="site-footer__about">
+                <a class="brand brand--footer" href="/">
+                    <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true"><use href="/img/icons.svg#logo"></use></svg>
+                    <span class="brand__name">SQL Server <strong>Backup</strong></span>
+                </a>
+                <p>Free, open-source SQL Server backup software for Windows: scheduled, verified and off-site backups for every edition, including SQL Server Express.</p>
+            </div>
+            <nav aria-label="Product">
+                <h2>Product</h2>
+                <a href="/features">Features</a>
+                <a href="/sql-server-express-backup">SQL Server Express backup</a>
+                <a href="/download">Download</a>
+                <a href="/faq">FAQ</a>
+            </nav>
+            <nav aria-label="Documentation">
+                <h2>Documentation</h2>
+                <a href="/docs">Getting started</a>
+                <a href="/docs/backup-jobs">Backup jobs &amp; schedules</a>
+                <a href="/docs/off-site-backups">Off-site backups</a>
+                <a href="/docs/monitoring-and-alerts">Monitoring &amp; alerts</a>
+                <a href="/docs/troubleshooting">Troubleshooting</a>
+            </nav>
+            <nav aria-label="Project">
+                <h2>Project</h2>
+                <a href="@site.RepositoryUrl" rel="noopener">Source code</a>
+                <a href="@site.IssuesUrl" rel="noopener">Report an issue</a>
+                <a href="/contact">Contact</a>
+                <a href="/license">MIT License</a>
+                <a href="/privacy">Privacy</a>
+                <partial name="_CookieSettingsLink" />
+            </nav>
+        </div>
+        <div class="container site-footer__legal">
+            <p>&copy; @DateTime.UtcNow.Year @site.Owner. Released under the <a href="/license">MIT License</a>.</p>
+            <p>Microsoft, SQL Server and Windows are trademarks of the Microsoft group of companies. This project is independent and not affiliated with Microsoft.</p>
+        </div>
+    </footer>
+
+    <partial name="_CookieConsent" />
+
+    <dialog class="lightbox" data-lightbox-dialog aria-label="Screenshot">
+        <button type="button" class="lightbox__close" aria-label="Close" data-lightbox-close>&times;</button>
+        <img alt="" data-lightbox-image>
+    </dialog>
+
+    <script src="~/js/site.js" asp-append-version="true" defer></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

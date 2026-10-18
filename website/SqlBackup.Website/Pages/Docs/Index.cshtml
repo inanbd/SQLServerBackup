@@ -1,0 +1,134 @@
+@page "/docs"
+@inject IOptions<SiteOptions> SiteOptions
+@{
+    var site = SiteOptions.Value;
+    var meta = ViewData.Meta();
+    meta.Title = "Getting Started: Install & Configure SQL Server Backups";
+    meta.AppendSiteName = false;
+    meta.Description = "Step-by-step guide: install the SQL Server backup service, add a connection, create a scheduled backup job and verify your first backup in minutes.";
+    meta.OgType = "article";
+    meta.Breadcrumbs.Add(new("Home", "/"));
+    meta.Breadcrumbs.Add(new("Docs", "/docs"));
+    meta.StructuredData.Add(StructuredData.TechArticle(site, "Getting started with SQL Server Backup Suite", meta.Description, "/docs"));
+}
+
+<section class="page-hero">
+    <div class="container">
+        <partial name="_Breadcrumbs" />
+        <h1>Getting started</h1>
+        <p class="lead">Install SQL Server Backup Suite, connect it to your SQL Server and take your first scheduled, verified backup &mdash; usually in less than ten minutes.</p>
+    </div>
+</section>
+
+<div class="container docs">
+    <partial name="_DocsNav" />
+    <article class="prose">
+        <nav class="toc" aria-label="On this page">
+            <h2>On this page</h2>
+            <ol>
+                <li><a href="#requirements">Requirements</a></li>
+                <li><a href="#install">Install</a></li>
+                <li><a href="#connect">Add a SQL Server connection</a></li>
+                <li><a href="#login">Create a dedicated backup login (recommended)</a></li>
+                <li><a href="#job">Create your first backup job</a></li>
+                <li><a href="#run">Run it and check the result</a></li>
+                <li><a href="#where">Where backups and settings are stored</a></li>
+                <li><a href="#next">Next steps</a></li>
+            </ol>
+        </nav>
+
+        <h2 id="requirements">Requirements</h2>
+        <ul>
+            <li><strong>Windows 10, Windows 11 or Windows Server 2016 or later</strong>, 64-bit. The installer is self-contained, so no separate .NET installation is needed.</li>
+            <li><strong>Microsoft SQL Server</strong>, any supported version and edition: Express, Web, Standard, Enterprise or Developer. The SQL Server can be on the same machine or on another server in your network.</li>
+            <li>A login that may back up the databases &mdash; the app can <a href="#login">create one for you</a>.</li>
+            <li>A destination folder with enough free space: a local disk on the SQL Server machine, or a network share.</li>
+        </ul>
+
+        <h2 id="install">1. Install</h2>
+        <p><a href="/download">Download</a> and run <code>SqlBackupSetup-@(site.Version).exe</code> as an administrator. The installer:</p>
+        <ul>
+            <li>copies the backup service and the control panel to <code>C:\Program Files\SqlBackup</code>;</li>
+            <li>creates the shared data folder <code>C:\ProgramData\SqlBackup</code>;</li>
+            <li>registers <strong>SqlBackupService</strong> (automatic start, automatic restart after a crash) and starts it;</li>
+            <li>adds a <em>SQL Server Backup Control Panel</em> shortcut to the Start menu.</li>
+        </ul>
+        <p>Open the control panel. The dashboard should say <strong>Service running</strong>. If it says <em>Service not installed</em> (for example when you run a build from source), go to <strong>Settings &rarr; Install service</strong>; it asks for administrator rights, copies the service to <code>Program Files\SqlBackup\Service</code> and starts it.</p>
+        <screenshot name="settings-service" caption="Settings → Windows service: install, start, stop or uninstall the backup service." />
+
+        <h2 id="connect">2. Add a SQL Server connection</h2>
+        <ol>
+            <li>Open <strong>Connections</strong> and click <strong>Add&hellip;</strong>.</li>
+            <li>Enter a <strong>Display name</strong> and the <strong>Server</strong>: <code>localhost</code>, <code>SERVER\SQLEXPRESS</code> for a named instance, or <code>server,1433</code> for a specific port.</li>
+            <li>Choose <strong>Windows</strong> authentication or <strong>SQL Server login</strong> and enter the login and password. Passwords are encrypted with Windows DPAPI.</li>
+            <li>Tick <strong>Encrypt connection</strong> if your server requires TLS. <strong>Trust server certificate</strong> accepts self-signed certificates.</li>
+            <li>Click <strong>Test connection</strong>. A green check mark shows the server name, edition and version.</li>
+        </ol>
+        <screenshot name="connection-editor" caption="A successful connection test against SQL Server 2022." />
+        <div class="callout">
+            <strong>Windows authentication runs as the service account.</strong>
+            <p>Scheduled backups run inside the Windows service, which uses <em>LocalSystem</em> by default &mdash; not your own Windows account. If you choose Windows authentication, that account needs backup rights, or use a dedicated SQL login as described next. See <a href="/docs/troubleshooting#service-account">Troubleshooting</a>.</p>
+        </div>
+
+        <h2 id="login">3. Create a dedicated backup login (recommended)</h2>
+        <p>The simplest secure setup is a SQL Server login used only for backups. With the connection editor open:</p>
+        <ol>
+            <li>Fill in the server and connect <em>as an administrator</em> &mdash; Windows authentication as yourself, or a sysadmin SQL login.</li>
+            <li>Click <strong>Create dedicated backup login</strong>.</li>
+            <li>The app creates <code>iSQLBackup_&lt;name&gt;_&lt;digits&gt;</code> with a random 24-character password, grants <code>db_backupoperator</code> in every online database, read access to backup history in <code>msdb</code> and <code>CREATE ANY DATABASE</code> (needed for <code>RESTORE VERIFYONLY</code>), and switches the connection to that login.</li>
+            <li>Click <strong>Save</strong>. The generated password is stored encrypted and never shown.</li>
+        </ol>
+        <screenshot name="dedicated-backup-login" caption="The dedicated login was created and granted on 10 databases." />
+        <p>The server must allow <strong>SQL Server and Windows Authentication mode</strong> (mixed mode). Re-run the button after you add new databases so the login covers them too; it reuses the same login and only resets its password.</p>
+
+        <h2 id="job">4. Create your first backup job</h2>
+        <ol>
+            <li>Open <strong>Backup Jobs</strong> and click <strong>Add&hellip;</strong>.</li>
+            <li>Name the job, choose the connection and the backup type <strong>Full</strong>.</li>
+            <li>Under <strong>Databases</strong>, pick <strong>AllUserDatabases</strong> so new databases are included automatically, or <strong>Explicit</strong> to tick specific ones. Click <strong>Load databases from server</strong> to see the list.</li>
+            <li>Under <strong>Schedule</strong>, choose <strong>Daily</strong> and a time such as <code>01:30</code>, then click <strong>Preview schedule</strong>.</li>
+            <li>Enter the <strong>Destination</strong> folder, for example <code>D:\SqlBackups</code>, and click <strong>Validate destination</strong>.</li>
+            <li>Under <strong>Retention</strong>, choose <strong>KeepLastN</strong> with <code>14</code>, or delete backups older than a number of days.</li>
+            <li>Leave <strong>Verify backup after completion</strong> and <strong>Page checksums</strong> ticked, then click <strong>Save</strong>.</li>
+        </ol>
+        <screenshot name="job-editor" caption="A nightly full backup of all user databases except one." />
+        <p>Full details on database selection, schedules, backup types and options are in <a href="/docs/backup-jobs">Backup jobs &amp; schedules</a>.</p>
+
+        <h2 id="run">5. Run it and check the result</h2>
+        <p>Back on the <strong>Dashboard</strong>, click <strong>Run now</strong> next to your job. The row turns blue and shows <em>Running&hellip;</em>; when it finishes, <em>Last result</em> reads, for example, <em>OK (6 database(s))</em>.</p>
+        <screenshot name="dashboard-running" caption="A job running on demand from the dashboard." />
+        <p>Open <strong>History</strong> and select the run to see the file name, size, duration, the SQL Server message and the verification result.</p>
+        <screenshot name="history" caption="Details of a verified full backup." />
+
+        <h2 id="where">Where backups and settings are stored</h2>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th scope="col">What</th><th scope="col">Where</th></tr></thead>
+                <tbody>
+                    <tr><td>Backup files</td><td>The job's destination folder, optionally in one subfolder per database, named like <code>SalesDB_Full_20261018_013000.bak</code> (<code>.trn</code> for log backups)</td></tr>
+                    <tr><td>Configuration</td><td><code>C:\ProgramData\SqlBackup\config.json</code> (secrets DPAPI-encrypted)</td></tr>
+                    <tr><td>Job history</td><td><code>C:\ProgramData\SqlBackup\history\</code></td></tr>
+                    <tr><td>Logs</td><td><code>C:\ProgramData\SqlBackup\logs\service-yyyyMMdd.log</code> and <code>app-yyyyMMdd.log</code></td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="callout callout--warning">
+            <strong>The SQL Server engine writes the backup file.</strong>
+            <p><code>BACKUP DATABASE &hellip; TO DISK</code> runs on the SQL Server, so the destination path is resolved <em>on the SQL Server machine</em> by the SQL Server service account. For a remote server, use a UNC share (<code>\\nas\sql-backups</code>) that both the SQL Server service account and the backup service can reach. If the file isn't visible from the backup machine the run still succeeds, but size, retention and off-site copy are skipped and the history says so.</p>
+        </div>
+        <p>Deleting a job never deletes its backup files.</p>
+
+        <h2 id="next">Next steps</h2>
+        <ul>
+            <li>Add <a href="/docs/backup-jobs#log-backups">differential and transaction log backups</a> for point-in-time recovery.</li>
+            <li>Copy backups <a href="/docs/off-site-backups">off-site to a NAS, Amazon S3, Azure, SFTP or Google Drive</a>.</li>
+            <li>Turn on <a href="/docs/monitoring-and-alerts">email, Slack or Teams alerts and an RPO alert</a>.</li>
+            <li>Practise a restore: copy a <code>.bak</code> file to a test server and run <code>RESTORE DATABASE</code>.</li>
+        </ul>
+
+        <div class="docs-pager">
+            <span></span>
+            <a href="/docs/backup-jobs"><small>Next</small>Backup jobs &amp; schedules &rarr;</a>
+        </div>
+    </article>
+</div>

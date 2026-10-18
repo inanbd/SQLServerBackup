@@ -22,3 +22,6 @@ packages/
 
 # Installer output
 installer/Output/
+
+# Website: local contact-form pickup folder (Development)
+website/SqlBackup.Website/App_Data/

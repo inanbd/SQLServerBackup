@@ -1,0 +1,36 @@
+@page "/faq"
+@model FaqModel
+@{
+    var meta = ViewData.Meta();
+    meta.Title = "SQL Server Backup FAQ";
+    meta.Description = "Answers about SQL Server Backup Suite: SQL Server Express support, backup types, restores, verification, retention, cloud backups, alerts and licensing.";
+    meta.Breadcrumbs.Add(new("Home", "/"));
+    meta.Breadcrumbs.Add(new("FAQ", "/faq"));
+    meta.StructuredData.Add(StructuredData.FaqPage(FaqModel.AllItems.Select(i => (i.Question, i.AnswerText))));
+}
+
+<section class="page-hero">
+    <div class="container">
+        <partial name="_Breadcrumbs" />
+        <h1>Frequently asked questions</h1>
+        <p class="lead">Everything people ask before they trust a tool with their SQL Server backups. Missing something? <a href="/contact">Ask us</a>.</p>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container faq">
+        @foreach (var group in FaqModel.Sections)
+        {
+            <h2>@group.Title</h2>
+            @foreach (var item in group.Items)
+            {
+                <details>
+                    <summary>@item.Question</summary>
+                    <div>@Html.Raw(item.AnswerHtml)</div>
+                </details>
+            }
+        }
+    </div>
+</section>
+
+<partial name="_DownloadCta" />

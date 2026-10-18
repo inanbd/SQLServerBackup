@@ -1,0 +1,5 @@
+@inject IOptions<GoogleAnalyticsOptions> Analytics
+@if (Analytics.Value is { Enabled: true, RequireConsent: true })
+{
+    <button type="button" class="link-button" data-consent-open>Cookie settings</button>
+}

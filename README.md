@@ -17,6 +17,15 @@ through Enterprise, with no dependency on SQL Server Agent.
   protection, T-SQL generation, backup runner, scheduling, retention, history,
   IPC contract, email notifier, rolling file logger.
 
+Website: **[sql-backup.kaizar.us](https://sql-backup.kaizar.us)** — features,
+user guide, FAQ and download (source in [`website/`](website/README.md)).
+
+![Dashboard of the SQL Server Backup control panel](website/SqlBackup.Website/wwwroot/img/screens/dashboard.webp)
+
+| Backup job editor | Off-site destinations | Reports |
+|---|---|---|
+| ![Backup job editor](website/SqlBackup.Website/wwwroot/img/screens/job-editor.webp) | ![Off-site destinations](website/SqlBackup.Website/wwwroot/img/screens/offsite-destinations.webp) | ![Reports](website/SqlBackup.Website/wwwroot/img/screens/reports.webp) |
+
 ```mermaid
 flowchart LR
     subgraph Desktop["SqlBackup.App (WPF, per user)"]
@@ -114,6 +123,8 @@ src/SqlBackup.Core/        shared library (all business logic lives here)
 src/SqlBackup.Service/     Windows Service host (scheduler + IPC server)
 src/SqlBackup.App/         WPF control panel
 tests/SqlBackup.Core.Tests unit tests + an in-process service E2E test
+website/SqlBackup.Website  product website (ASP.NET Core Razor Pages), see website/README.md
+tests/SqlBackup.Website.Tests website integration tests
 installer/SqlBackup.iss    Inno Setup 6 script
 scripts/publish.ps1        publish both apps + compile the installer
 docs/config-schema.md      data/config schema reference
@@ -126,7 +137,7 @@ Requires the **.NET 8 SDK**.
 
 ```powershell
 dotnet build SqlServerBackup.sln       # everything (Windows)
-dotnet test  SqlServerBackup.sln       # 46 tests incl. an in-process service E2E
+dotnet test  SqlServerBackup.sln       # core tests incl. an in-process service E2E, plus website tests
 pwsh scripts/publish.ps1               # publish/Service + publish/App (+ installer if ISCC found)
 ```
 
@@ -316,3 +327,7 @@ Slack/Teams/webhook alerts, pre/post-run hooks, bandwidth throttling for UNC
 targets, CLI companion, role-based access, audit log of config changes, and a
 health endpoint for Prometheus/Zabbix. The `Core`/`Service` split was designed
 so these bolt on without reworking the engine.
+
+## License
+
+Released under the [MIT License](LICENSE) — Copyright (c) 2026 inanbd.

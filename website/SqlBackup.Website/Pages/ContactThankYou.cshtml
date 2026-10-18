@@ -1,0 +1,16 @@
+@page "/contact/thank-you"
+@{
+    var meta = ViewData.Meta();
+    meta.Title = "Message sent";
+    meta.Description = "Thank you for contacting SQL Server Backup Suite. We will reply by email.";
+    meta.NoIndex = true;
+}
+
+<section class="section not-found" data-ga-pageview-event="generate_lead">
+    <div class="container">
+        <span class="card__icon"><svg aria-hidden="true"><use href="/img/icons.svg#check"></use></svg></span>
+        <h1>Thank you &mdash; your message is on its way</h1>
+        <p class="lead">We'll reply to the email address you entered. In the meantime, the <a href="/docs">documentation</a> and <a href="/faq">FAQ</a> may already have the answer.</p>
+        <p><a class="btn" href="/">Back to the home page</a></p>
+    </div>
+</section>

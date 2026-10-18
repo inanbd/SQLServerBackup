@@ -1,0 +1,72 @@
+@page "/download"
+@inject IOptions<SiteOptions> SiteOptions
+@{
+    var site = SiteOptions.Value;
+    var meta = ViewData.Meta();
+    meta.Title = "Download SQL Server Backup Suite – Free for Windows";
+    meta.AppendSiteName = false;
+    meta.Description = "Download the free SQL Server backup tool for Windows 10, 11 and Server: one installer for the backup service and control panel. Open source, MIT License.";
+    meta.Breadcrumbs.Add(new("Home", "/"));
+    meta.Breadcrumbs.Add(new("Download", "/download"));
+}
+
+<section class="page-hero">
+    <div class="container">
+        <partial name="_Breadcrumbs" />
+        <h1>Download SQL Server Backup Suite</h1>
+        <p class="lead">Free and open source for Windows. One installer sets up the backup service and the control panel; no .NET installation required.</p>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container">
+        <div class="card download-card">
+            <div>
+                <h2 class="mt-0">SQL Server Backup Suite <span class="version">v@(site.Version)</span></h2>
+                <p>Windows installer (64-bit) for the backup service and the control panel. Releases, release notes and the installer <code>SqlBackupSetup-@(site.Version).exe</code> are published on GitHub.</p>
+                <ul class="checklist">
+                    <li>Windows 10, Windows 11, Windows Server 2016 or later (x64)</li>
+                    <li>SQL Server Express, Web, Standard, Enterprise or Developer</li>
+                    <li>Self-contained: the .NET runtime is included</li>
+                    <li>MIT License &mdash; free for personal and commercial use</li>
+                </ul>
+            </div>
+            <div class="download-card__actions">
+                <a class="btn btn--large btn--green" href="@site.DownloadUrl" rel="noopener" data-ga-event="download_click">
+                    <svg aria-hidden="true"><use href="/img/icons.svg#download"></use></svg> Download from GitHub
+                </a>
+                <a class="btn btn--ghost" href="@site.RepositoryUrl" rel="noopener" data-ga-event="source_click">View source code</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section section--alt">
+    <div class="container prose">
+        <h2 id="install">Install</h2>
+        <ol>
+            <li>Download the installer from the release page and run it. Windows asks for administrator rights because a service is installed.</li>
+            <li>Choose the installation folder (default <code>C:\Program Files\SqlBackup</code>) and, optionally, a desktop shortcut.</li>
+            <li>The installer registers and starts <strong>SqlBackupService</strong> with automatic start and crash recovery, and creates <code>C:\ProgramData\SqlBackup</code> for configuration, history and logs.</li>
+            <li>Launch the <strong>SQL Server Backup Control Panel</strong> and follow the <a href="/docs">getting started guide</a>.</li>
+        </ol>
+
+        <h2 id="upgrade">Upgrade</h2>
+        <p>Stop the service (<em>Settings &rarr; Stop</em> in the control panel), then run the newer installer over the existing installation. It replaces the program files and re-registers and starts the service. Your configuration, history and backup files are kept.</p>
+
+        <h2 id="uninstall">Uninstall</h2>
+        <p>Remove <em>SQL Server Backup Suite</em> in <em>Settings &rarr; Apps</em>. The service is stopped and removed. <code>C:\ProgramData\SqlBackup</code> (configuration, history and logs) and all backup files stay on disk; delete them yourself if you no longer need them.</p>
+
+        <h2 id="source">Build from source</h2>
+        <p>You need the <a href="https://dotnet.microsoft.com/download/dotnet/8.0" rel="noopener">.NET 8 SDK</a> and, for the installer, <a href="https://jrsoftware.org/isinfo.php" rel="noopener">Inno Setup 6</a>.</p>
+        <pre><code>git clone @(site.RepositoryUrl).git
+cd SQLServerBackup
+dotnet build SqlServerBackup.sln
+dotnet test  SqlServerBackup.sln
+pwsh scripts/publish.ps1    # publish/Service, publish/App and the installer</code></pre>
+        <p>The core library, the service and the tests also build and run on Linux and macOS; the WPF control panel runs on Windows.</p>
+
+        <h2 id="license">License</h2>
+        <p>SQL Server Backup Suite is released under the <a href="/license">MIT License</a>. It comes without warranty &mdash; test your restores.</p>
+    </div>
+</section>

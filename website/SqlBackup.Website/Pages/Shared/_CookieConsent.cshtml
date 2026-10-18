@@ -1,0 +1,11 @@
+@inject IOptions<GoogleAnalyticsOptions> Analytics
+@if (Analytics.Value is { Enabled: true, RequireConsent: true })
+{
+    <section class="consent" data-consent-banner hidden aria-label="Cookie consent">
+        <p>We use Google Analytics cookies to learn which pages are useful. No advertising, no cross-site tracking. See the <a href="/privacy">privacy policy</a>.</p>
+        <div class="consent__actions">
+            <button type="button" class="btn btn--ghost" data-consent="denied">Decline</button>
+            <button type="button" class="btn" data-consent="granted">Accept analytics</button>
+        </div>
+    </section>
+}

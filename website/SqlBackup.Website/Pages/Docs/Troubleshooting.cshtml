@@ -1,0 +1,128 @@
+@page "/docs/troubleshooting"
+@inject IOptions<SiteOptions> SiteOptions
+@{
+    var site = SiteOptions.Value;
+    var meta = ViewData.Meta();
+    meta.Title = "SQL Server Backup Troubleshooting: Permissions & Errors";
+    meta.AppendSiteName = false;
+    meta.Description = "Fix common SQL Server backup errors: NT AUTHORITY\\SYSTEM cannot access the database, BACKUP DATABASE permission denied, OS error 5 or 112, service error 1053.";
+    meta.OgType = "article";
+    meta.Breadcrumbs.Add(new("Home", "/"));
+    meta.Breadcrumbs.Add(new("Docs", "/docs"));
+    meta.Breadcrumbs.Add(new("Troubleshooting", "/docs/troubleshooting"));
+    meta.StructuredData.Add(StructuredData.TechArticle(site, "Troubleshooting SQL Server backup errors", meta.Description, "/docs/troubleshooting"));
+}
+
+<section class="page-hero">
+    <div class="container">
+        <partial name="_Breadcrumbs" />
+        <h1>Troubleshooting</h1>
+        <p class="lead">The errors people actually hit when automating SQL Server backups &mdash; what they mean and how to fix them. History shows the exact SQL Server message for every failed run.</p>
+    </div>
+</section>
+
+<div class="container docs">
+    <partial name="_DocsNav" />
+    <article class="prose">
+        <nav class="toc" aria-label="On this page">
+            <h2>On this page</h2>
+            <ol>
+                <li><a href="#service-account">&ldquo;NT AUTHORITY\SYSTEM is not able to access the database&rdquo;</a></li>
+                <li><a href="#os-error-5">&ldquo;Cannot open backup device &hellip; Operating system error 5 (Access is denied)&rdquo;</a></li>
+                <li><a href="#os-error-112">&ldquo;Operating system error 112 (not enough space on the disk)&rdquo;</a></li>
+                <li><a href="#log-backups">Transaction log backup errors</a></li>
+                <li><a href="#compression">&ldquo;BACKUP DATABASE WITH COMPRESSION is not supported on Express Edition&rdquo;</a></li>
+                <li><a href="#not-visible">&ldquo;Backup file is not visible from this machine&rdquo;</a></li>
+                <li><a href="#error-1053">Service install fails with error 1053</a></li>
+                <li><a href="#ipc">&ldquo;Service running, IPC unavailable&rdquo;</a></li>
+                <li><a href="#offsite">Off-site upload errors</a></li>
+                <li><a href="#logs">Where to find the logs</a></li>
+            </ol>
+        </nav>
+
+        <h2 id="service-account">&ldquo;The server principal NT AUTHORITY\SYSTEM is not able to access the database under the current security context&rdquo;</h2>
+        <p>Also seen as <code>BACKUP DATABASE permission denied</code> or <code>Login failed for user</code>. The job uses <strong>Windows authentication inside the service</strong>, so it connects as the <strong>service account</strong> (LocalSystem by default) &mdash; not as you. That is why the same job can succeed when you run it standalone from the app and fail in the service. Fix it in one of three ways:</p>
+        <ol>
+            <li><strong>Use a dedicated SQL login (recommended):</strong> <em>Connections &rarr; Edit &rarr; Create dedicated backup login</em> provisions an <code>iSQLBackup_&hellip;</code> login with exactly the rights needed and stores its password encrypted. Requires mixed-mode authentication.</li>
+            <li><strong>Run the service as an account with access:</strong> <em>services.msc &rarr; SQL Server Backup Service &rarr; Log On &rarr; This account</em>, then restart the service.</li>
+            <li><strong>Grant the service account backup rights</strong>, per database:
+                <pre><code>CREATE USER [NT AUTHORITY\SYSTEM] FOR LOGIN [NT AUTHORITY\SYSTEM];
+ALTER ROLE [db_backupoperator] ADD MEMBER [NT AUTHORITY\SYSTEM];</code></pre>
+                Adding <code>NT AUTHORITY\SYSTEM</code> to <code>sysadmin</code> also works, but it hands the whole instance to every LocalSystem process.
+            </li>
+        </ol>
+        <p>The dashboard shows which account the engine runs as (&ldquo;running as &hellip;&rdquo;), and permission failures in History repeat this guidance.</p>
+
+        <h2 id="os-error-5">&ldquo;Cannot open backup device &hellip; Operating system error 5 (Access is denied.)&rdquo;</h2>
+        <p>SQL Server could not write to the destination folder. The file is written by the <strong>SQL Server service account</strong> (for example <code>NT Service\MSSQLSERVER</code> or <code>NT Service\MSSQL$SQLEXPRESS</code>), not by the backup service.</p>
+        <ul>
+            <li>Local folder: give that account <em>Modify</em> permission on the folder.</li>
+            <li>Network share: run SQL Server as a domain account with write access to the share, or grant the SQL Server computer account (<code>DOMAIN\SERVER$</code>) access.</li>
+            <li>Click <strong>Validate destination</strong> in the job editor after changing permissions.</li>
+        </ul>
+
+        <h2 id="os-error-112">&ldquo;Operating system error 112 (There is not enough space on the disk.)&rdquo;</h2>
+        <ul>
+            <li>Tighten <a href="/docs/backup-jobs#retention">retention</a> or move old backups off the volume &mdash; for example with <em>OffsiteOnly</em> <a href="/docs/off-site-backups#storage-modes">storage mode</a>.</li>
+            <li>Enable native compression (not available on Express edition).</li>
+            <li>Remember that retention keeps full backups that newer differential or log backups still depend on; a long log chain therefore needs more space.</li>
+            <li>History adds a warning when free space on the destination drops below a threshold (512 MB by default), so you can act before backups fail.</li>
+        </ul>
+
+        <h2 id="log-backups">Transaction log backup errors</h2>
+        <p><strong>&ldquo;BACKUP LOG cannot be performed because there is no current database backup&rdquo;</strong> &mdash; the database has never had a full backup, or its recovery model was changed. With <em>Take a full backup automatically when differential/log has no base</em> ticked, the job takes a full backup instead; otherwise run the full backup job first.</p>
+        <p><strong>&ldquo;uses the SIMPLE recovery model; transaction log backups are not possible&rdquo;</strong> &mdash; log backups need the FULL or BULK_LOGGED recovery model. Either remove the database from the log backup job or change its recovery model (then take a full backup to start the log chain):</p>
+        <pre><code>ALTER DATABASE [SalesDB] SET RECOVERY FULL;</code></pre>
+
+        <h2 id="compression">&ldquo;BACKUP DATABASE WITH COMPRESSION is not supported on Express Edition&rdquo;</h2>
+        <p>Native backup compression is an edition feature. Untick <strong>Native backup compression</strong> in the job's options for SQL Server Express.</p>
+
+        <h2 id="not-visible">&ldquo;Backup file is not visible from this machine&rdquo;</h2>
+        <p>The backup succeeded, but the path you entered exists only on the SQL Server host (for example <code>D:\Backups</code> on a remote server). Size, retention and the off-site copy are skipped because the backup service cannot see the file. Use a UNC share that both machines can reach, or install SQL Server Backup Suite on the SQL Server machine itself.</p>
+
+        <h2 id="error-1053">Service install fails with error 1053 (&ldquo;did not respond to the start request&rdquo;)</h2>
+        <p>Windows registered the service but the process never started or crashed immediately. Check <code>C:\ProgramData\SqlBackup\logs</code> for a <code>service-*.log</code>; if there is none, the process never launched. Usual causes:</p>
+        <ol>
+            <li>The service was registered from an incomplete or per-user folder (for example a ClickOnce cache). <em>Install service</em> copies the full service folder to <code>Program Files\SqlBackup\Service</code> and registers that copy &mdash; use the installer or that button rather than ClickOnce.</li>
+            <li>A framework-dependent build on a machine without the .NET 8 runtime &mdash; use the self-contained installer or install the runtime.</li>
+            <li>A startup crash &mdash; the service log or <em>Event Viewer &rarr; Application</em> has the reason.</li>
+        </ol>
+
+        <h2 id="ipc">&ldquo;Service running, IPC unavailable&rdquo; or &ldquo;closed the connection without responding&rdquo;</h2>
+        <p>The service process is alive but cannot answer the control panel. The dashboard shows the last error; the service log contains <code>IPC request read failed</code> or <code>IPC response write failed</code> lines.</p>
+        <ul>
+            <li><strong>Stale service build:</strong> <code>sc qc SqlBackupService</code> shows which exe is registered. Re-run <em>Settings &rarr; Install service</em> after updating so the current build is copied.</li>
+            <li><strong>Trimmed publish:</strong> never publish the service with IL trimming; it breaks the JSON serializers.</li>
+            <li><strong>Files replaced while running:</strong> stop the service before replacing its files, then start it again.</li>
+        </ul>
+
+        <h2 id="offsite">Off-site upload errors</h2>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th scope="col">Symptom</th><th scope="col">Fix</th></tr></thead>
+                <tbody>
+                    <tr><td>Google: &ldquo;Access blocked / Error 401: invalid_client&rdquo;</td><td>You entered an email address and password instead of the OAuth <em>Client ID</em> and <em>Client secret</em> from Google Cloud Console.</td></tr>
+                    <tr><td>Google: uploads stop after about a week</td><td>The OAuth consent screen is still in <em>Testing</em> status; publish it and authorize again.</td></tr>
+                    <tr><td>Google: storage quota exceeded with a service account</td><td>Service accounts have no storage of their own. Use a folder in a Shared Drive the service account belongs to.</td></tr>
+                    <tr><td>Azure: 403 / AuthorizationPermissionMismatch</td><td>The SAS token is missing a permission (Create, Write, List, Delete) or has expired.</td></tr>
+                    <tr><td>S3: AccessDenied</td><td>The IAM policy lacks <code>s3:ListBucket</code> on the bucket or <code>s3:PutObject</code>/<code>s3:DeleteObject</code> on its objects; check the region too.</td></tr>
+                    <tr><td>SMB: access denied</td><td>Without a user name the share is accessed as the service account (the computer account for LocalSystem). Grant it access or enter <code>DOMAIN\user</code> credentials.</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <p>Use <strong>Test destination</strong> in the destination editor to check settings without waiting for the next backup.</p>
+
+        <h2 id="logs">Where to find the logs</h2>
+        <ul>
+            <li>Service: <code>C:\ProgramData\SqlBackup\logs\service-yyyyMMdd.log</code></li>
+            <li>Control panel: <code>C:\ProgramData\SqlBackup\logs\app-yyyyMMdd.log</code></li>
+            <li><em>Settings &rarr; Open logs</em> opens the folder.</li>
+        </ul>
+        <p>Still stuck? <a href="@site.IssuesUrl" rel="noopener">Open an issue on GitHub</a> with the error from History and the relevant log lines, or <a href="/contact">contact us</a>.</p>
+
+        <div class="docs-pager">
+            <a href="/docs/monitoring-and-alerts"><small>Previous</small>&larr; Monitoring &amp; alerts</a>
+            <a href="/faq"><small>Next</small>FAQ &rarr;</a>
+        </div>
+    </article>
+</div>

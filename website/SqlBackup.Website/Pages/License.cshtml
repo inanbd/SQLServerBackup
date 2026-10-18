@@ -1,0 +1,40 @@
+@page "/license"
+@model LicenseModel
+@inject IOptions<SiteOptions> SiteOptions
+@{
+    var site = SiteOptions.Value;
+    var meta = ViewData.Meta();
+    meta.Title = "MIT License";
+    meta.Description = "SQL Server Backup Suite is free, open-source software released under the MIT License. Use, copy, modify and distribute it, including commercially.";
+    meta.Breadcrumbs.Add(new("Home", "/"));
+    meta.Breadcrumbs.Add(new("License", "/license"));
+}
+
+<section class="page-hero">
+    <div class="container">
+        <partial name="_Breadcrumbs" />
+        <h1>MIT License</h1>
+        <p class="lead">SQL Server Backup Suite is open source. You may use it on any number of servers, for personal or commercial purposes, modify it and share it &mdash; as long as the copyright notice and license text stay with it.</p>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container prose">
+        <h2 class="mt-0">License text</h2>
+        @if (Model.LicenseText.Length > 0)
+        {
+            <pre class="license-text">@Model.LicenseText</pre>
+        }
+        else
+        {
+            <p>The license text is in the <a href="@site.RepositoryUrl/blob/HEAD/LICENSE" rel="noopener">LICENSE file on GitHub</a>.</p>
+        }
+        <h2>What this means in practice</h2>
+        <ul>
+            <li><strong>You can</strong> use the software commercially, modify it, distribute it and use it privately.</li>
+            <li><strong>You must</strong> include the copyright notice and the license text in copies or substantial portions of the software.</li>
+            <li><strong>No warranty:</strong> the software is provided &ldquo;as is&rdquo;. Always test that your backups restore.</li>
+        </ul>
+        <p>Third-party components (for example the AWS, Azure, Google and SSH.NET client libraries) are used under their own licenses. The source code is on <a href="@site.RepositoryUrl" rel="noopener">GitHub</a>.</p>
+    </div>
+</section>

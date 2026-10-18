@@ -1,0 +1,242 @@
+@page
+@inject IOptions<SiteOptions> SiteOptions
+@{
+    var site = SiteOptions.Value;
+    var meta = ViewData.Meta();
+    meta.Title = "Free SQL Server Backup Software | SQL Server Backup Suite";
+    meta.AppendSiteName = false;
+    meta.Description = "Schedule, verify and copy SQL Server backups off-site from one Windows service: full, differential and log backups, Express included, no SQL Agent needed.";
+    meta.StructuredData.Add(StructuredData.WebSite(site));
+    meta.StructuredData.Add(StructuredData.SoftwareApplication(site,
+        new[] { "dashboard", "job-editor", "offsite-destinations", "reports" }.Select(n => Screenshots.Get(n).Src2x)));
+}
+@section Head {
+    <link rel="preload" as="image" href="/img/screens/dashboard.webp" imagesrcset="/img/screens/dashboard.webp 1x, /img/screens/dashboard@2x.webp 2x" fetchpriority="high">
+}
+
+<section class="hero">
+    <div class="container hero__inner">
+        <div class="hero__copy">
+            <span class="eyebrow">Free &amp; open source &middot; MIT License</span>
+            <h1>Automated SQL Server backups, <em>even on SQL Server Express</em></h1>
+            <p class="lead">
+                A Windows service and control panel that schedules native full, differential and transaction log backups,
+                verifies every file, enforces retention and copies backups off-site to a file share, Amazon S3,
+                Azure Blob Storage, SFTP or Google Drive. No SQL Server Agent required.
+            </p>
+            <div class="hero__actions">
+                <a class="btn btn--large btn--green" href="/download" data-ga-event="download_cta">
+                    <svg aria-hidden="true"><use href="/img/icons.svg#download"></use></svg> Download for Windows
+                </a>
+                <a class="btn btn--large btn--ghost-light" href="/features">Explore the features</a>
+            </div>
+            <ul class="hero__meta">
+                <li><svg aria-hidden="true"><use href="/img/icons.svg#check"></use></svg> Express, Web, Standard, Enterprise &amp; Developer</li>
+                <li><svg aria-hidden="true"><use href="/img/icons.svg#check"></use></svg> Runs as a Windows service</li>
+                <li><svg aria-hidden="true"><use href="/img/icons.svg#check"></use></svg> No license fees, ever</li>
+            </ul>
+        </div>
+        <div class="hero__shot">
+            <screenshot name="dashboard" priority="true" />
+        </div>
+    </div>
+</section>
+
+<section class="section section--tight">
+    <div class="container">
+        <p class="center muted">Keep a local copy, an off-site copy, or both &mdash; on the storage you already use:</p>
+        <ul class="strip">
+            <li>Local disk</li>
+            <li>Network share (SMB / UNC)</li>
+            <li>Amazon S3</li>
+            <li>S3-compatible (MinIO, Backblaze B2, Wasabi)</li>
+            <li>Azure Blob Storage</li>
+            <li>SFTP server</li>
+            <li>Google Drive</li>
+        </ul>
+    </div>
+</section>
+
+<section class="section section--alt" aria-labelledby="everything">
+    <div class="container">
+        <div class="section__head">
+            <span class="eyebrow">Features</span>
+            <h2 id="everything">Everything a dependable SQL Server backup routine needs</h2>
+            <p>Built on SQL Server's own <code>BACKUP DATABASE</code> and <code>BACKUP LOG</code> commands, so your backups restore with any standard tool &mdash; no proprietary format, no lock-in.</p>
+        </div>
+        <div class="grid grid--3">
+            <article class="card">
+                <span class="card__icon"><svg aria-hidden="true"><use href="/img/icons.svg#clock"></use></svg></span>
+                <h3>Flexible backup schedules</h3>
+                <p>Every N minutes, daily, weekly on chosen days, or any cron expression. Preview the next runs before you save, and catch up automatically after downtime.</p>
+            </article>
+            <article class="card">
+                <span class="card__icon"><svg aria-hidden="true"><use href="/img/icons.svg#layers"></use></svg></span>
+                <h3>Full, differential &amp; log backups</h3>
+                <p>Mix backup types to hit your recovery point objective. A differential or log backup without a base automatically becomes a full backup.</p>
+            </article>
+            <article class="card">
+                <span class="card__icon"><svg aria-hidden="true"><use href="/img/icons.svg#database"></use></svg></span>
+                <h3>New databases covered automatically</h3>
+                <p>Back up an explicit list, or &ldquo;all user databases&rdquo; with exclusions &mdash; discovered at run time, so a database created tomorrow is protected tomorrow.</p>
+            </article>
+            <article class="card">
+                <span class="card__icon"><svg aria-hidden="true"><use href="/img/icons.svg#shield"></use></svg></span>
+                <h3>Verified backups</h3>
+                <p>Page checksums, native compression and an optional <code>RESTORE VERIFYONLY</code> after every backup, so a broken file is reported the night it is written.</p>
+            </article>
+            <article class="card">
+                <span class="card__icon"><svg aria-hidden="true"><use href="/img/icons.svg#refresh"></use></svg></span>
+                <h3>Chain-aware retention</h3>
+                <p>Keep the last N backups or delete after X days. A full backup is never removed while newer differential or log backups still depend on it.</p>
+            </article>
+            <article class="card">
+                <span class="card__icon"><svg aria-hidden="true"><use href="/img/icons.svg#cloud"></use></svg></span>
+                <h3>Off-site copies</h3>
+                <p>Upload each finished backup to SMB, Amazon S3, Azure Blob, SFTP or Google Drive with retries and an independent off-site retention policy.</p>
+            </article>
+            <article class="card">
+                <span class="card__icon"><svg aria-hidden="true"><use href="/img/icons.svg#bell"></use></svg></span>
+                <h3>Alerts where you work</h3>
+                <p>Email (SMTP), a Slack, Microsoft Teams or Discord-compatible webhook, and the Windows Event Log &mdash; on failure only, or after every run.</p>
+            </article>
+            <article class="card">
+                <span class="card__icon"><svg aria-hidden="true"><use href="/img/icons.svg#history"></use></svg></span>
+                <h3>Missing-backup (RPO) alerts</h3>
+                <p>&ldquo;Alert me when there has been no good backup for 26 hours&rdquo; fires even when a job is disabled or never starts &mdash; the failure mode schedules can't catch.</p>
+            </article>
+            <article class="card">
+                <span class="card__icon"><svg aria-hidden="true"><use href="/img/icons.svg#key"></use></svg></span>
+                <h3>Least-privilege security</h3>
+                <p>One click creates a dedicated backup login with only the rights backups need. Every password is encrypted with Windows DPAPI, never stored in plain text.</p>
+            </article>
+        </div>
+        <p class="center"><a class="btn btn--ghost" href="/features">See every feature in detail</a></p>
+    </div>
+</section>
+
+<section class="section" aria-labelledby="how">
+    <div class="container">
+        <div class="section__head">
+            <span class="eyebrow">How it works</span>
+            <h2 id="how">From install to your first verified backup in four steps</h2>
+            <p>A background Windows service does the work &mdash; with nobody logged in &mdash; while the control panel configures and monitors it.</p>
+        </div>
+        <ol class="steps">
+            <li><h3>Install</h3><p>Run the installer. It registers the backup service, configures automatic crash restart and starts it.</p></li>
+            <li><h3>Connect</h3><p>Add your SQL Server instance with Windows or SQL authentication and click <em>Test connection</em>.</p></li>
+            <li><h3>Create a job</h3><p>Pick databases, backup type, schedule, destination folder, retention and an optional off-site copy.</p></li>
+            <li><h3>Monitor</h3><p>Watch the dashboard, browse history and reports, and get an alert the moment something fails.</p></li>
+        </ol>
+        <p class="center"><a href="/docs">Read the step-by-step getting started guide &rarr;</a></p>
+    </div>
+</section>
+
+<section class="section section--alt" aria-labelledby="tour">
+    <div class="container">
+        <div class="section__head">
+            <span class="eyebrow">Take the tour</span>
+            <h2 id="tour">Real screenshots from the control panel</h2>
+            <p>Every image on this site is a capture of the actual application, connected to SQL Server 2022.</p>
+        </div>
+
+        <div class="feature-row feature-row--dialog">
+            <div class="feature-row__copy">
+                <h3>Design a backup job in one window</h3>
+                <p>Choose the connection and backup type, load the database list straight from the server, set the schedule and preview the next runs, then decide where backups go and how long they stay.</p>
+                <ul class="checklist">
+                    <li>All user databases with exclusions, or an explicit list</li>
+                    <li>Daily, weekly, interval or cron schedules</li>
+                    <li>Subfolder per database and timestamped file names</li>
+                </ul>
+                <a href="/docs/backup-jobs">How to create a backup job &rarr;</a>
+            </div>
+            <screenshot name="job-editor" />
+        </div>
+
+        <div class="feature-row feature-row--reverse">
+            <div class="feature-row__copy">
+                <h3>Off-site copies without scripts</h3>
+                <p>Define a destination once and attach it to any job. Keep both copies, or treat the local folder as staging and keep only the off-site copy.</p>
+                <ul class="checklist">
+                    <li>Windows file share, Amazon S3 and S3-compatible storage</li>
+                    <li>Azure Blob Storage, SFTP and Google Drive</li>
+                    <li>Upload retries and separate off-site retention</li>
+                </ul>
+                <a href="/docs/off-site-backups">Set up off-site backups &rarr;</a>
+            </div>
+            <screenshot name="offsite-destinations" />
+        </div>
+
+        <div class="feature-row">
+            <div class="feature-row__copy">
+                <h3>Know your backups are healthy</h3>
+                <p>The Reports page shows the 30-day success rate, run and failure counts, the current full-backup footprint and a 14-day size trend for every database.</p>
+                <ul class="checklist">
+                    <li>Per-database success rate and durations</li>
+                    <li>Growth percentage to plan storage</li>
+                    <li>Full history with the real SQL Server message</li>
+                </ul>
+                <a href="/docs/monitoring-and-alerts">Monitoring and alerts &rarr;</a>
+            </div>
+            <screenshot name="reports" />
+        </div>
+    </div>
+</section>
+
+<section class="section" aria-labelledby="compare">
+    <div class="container">
+        <div class="section__head">
+            <span class="eyebrow">Why another backup tool?</span>
+            <h2 id="compare">SQL Server Agent isn't always there &mdash; and it stops at the server</h2>
+            <p>SQL Server Express ships without SQL Server Agent, and maintenance plans never copy backups anywhere else. SQL Server Backup Suite fills both gaps.</p>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col">Capability</th>
+                        <th scope="col">SQL Server Backup Suite</th>
+                        <th scope="col">Agent + maintenance plans</th>
+                        <th scope="col">Scripts + Task Scheduler</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><th scope="row">Works on SQL Server Express</th><td><span class="yes">Yes</span></td><td><span class="no">No (Express has no Agent)</span></td><td>Yes, hand-written</td></tr>
+                    <tr><th scope="row">Full, differential and log schedules</th><td><span class="yes">Yes</span></td><td>Yes</td><td>Hand-written</td></tr>
+                    <tr><th scope="row">Verify each backup</th><td><span class="yes">Yes</span></td><td>Yes</td><td>Hand-written</td></tr>
+                    <tr><th scope="row">Retention that respects backup chains</th><td><span class="yes">Yes</span></td><td><span class="no">Age-based cleanup only</span></td><td>Hand-written</td></tr>
+                    <tr><th scope="row">Copies to S3, Azure, SFTP, Google Drive, SMB</th><td><span class="yes">Yes, built in</span></td><td><span class="no">Backup to URL only (Azure; S3 on SQL Server 2022)</span></td><td>Hand-written</td></tr>
+                    <tr><th scope="row">Alert when no backup happened</th><td><span class="yes">Yes (RPO alerts)</span></td><td><span class="no">Needs custom jobs</span></td><td><span class="no">Rarely</span></td></tr>
+                    <tr><th scope="row">Dashboard, history and reports</th><td><span class="yes">Yes</span></td><td>Job history in SSMS</td><td><span class="no">Log files</span></td></tr>
+                </tbody>
+            </table>
+        </div>
+        <p class="center"><a href="/sql-server-express-backup">How to schedule SQL Server Express backups without SQL Agent &rarr;</a></p>
+    </div>
+</section>
+
+<section class="section section--alt" aria-labelledby="faq-teaser">
+    <div class="container faq">
+        <h2 id="faq-teaser" class="center">Common questions</h2>
+        <details>
+            <summary>Is SQL Server Backup Suite really free?</summary>
+            <div><p>Yes. It is open source under the MIT License: use it on as many servers as you like, commercially or privately, and read or change the source code on GitHub.</p></div>
+        </details>
+        <details>
+            <summary>Which SQL Server editions and versions are supported?</summary>
+            <div><p>Every edition &mdash; Express, Web, Standard, Enterprise and Developer. Backups use native T-SQL, so any SQL Server version that Microsoft still supports works. Backup compression is an edition feature and is not available on Express.</p></div>
+        </details>
+        <details>
+            <summary>Do I need SQL Server Agent?</summary>
+            <div><p>No. Scheduling is done by the SQL Server Backup Windows service, which is why it works on SQL Server Express, where SQL Server Agent does not exist.</p></div>
+        </details>
+        <details>
+            <summary>Can I restore the backups without this tool?</summary>
+            <div><p>Yes. The files are ordinary <code>.bak</code> and <code>.trn</code> backups created by SQL Server itself. Restore them with SQL Server Management Studio, <code>RESTORE DATABASE</code>, or any other tool.</p></div>
+        </details>
+        <p class="center"><a href="/faq">Read all frequently asked questions &rarr;</a></p>
+    </div>
+</section>
+
+<partial name="_DownloadCta" />

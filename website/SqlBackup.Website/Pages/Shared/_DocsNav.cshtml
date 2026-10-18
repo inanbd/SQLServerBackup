@@ -1,0 +1,16 @@
+@{
+    var path = (Context.Request.Path.Value ?? "").ToLowerInvariant().TrimEnd('/');
+    string Current(string href) => path == href ? "page" : "false";
+}
+<nav class="docs-nav" aria-label="Documentation">
+    <h2>Documentation</h2>
+    <a href="/docs" aria-current="@Current("/docs")">Getting started</a>
+    <a href="/docs/backup-jobs" aria-current="@Current("/docs/backup-jobs")">Backup jobs &amp; schedules</a>
+    <a href="/docs/off-site-backups" aria-current="@Current("/docs/off-site-backups")">Off-site backups</a>
+    <a href="/docs/monitoring-and-alerts" aria-current="@Current("/docs/monitoring-and-alerts")">Monitoring &amp; alerts</a>
+    <a href="/docs/troubleshooting" aria-current="@Current("/docs/troubleshooting")">Troubleshooting</a>
+    <h2>More</h2>
+    <a href="/sql-server-express-backup">SQL Server Express backups</a>
+    <a href="/faq">FAQ</a>
+    <a href="/download">Download</a>
+</nav>

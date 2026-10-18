@@ -1,0 +1,23 @@
+@{
+    var crumbs = ViewData.Meta().Breadcrumbs;
+}
+@if (crumbs.Count > 1)
+{
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+        <ol>
+            @for (var i = 0; i < crumbs.Count; i++)
+            {
+                <li>
+                    @if (i < crumbs.Count - 1)
+                    {
+                        <a href="@crumbs[i].Path">@crumbs[i].Name</a>
+                    }
+                    else
+                    {
+                        <span aria-current="page">@crumbs[i].Name</span>
+                    }
+                </li>
+            }
+        </ol>
+    </nav>
+}

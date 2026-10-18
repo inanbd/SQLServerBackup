@@ -1,0 +1,135 @@
+@page "/docs/monitoring-and-alerts"
+@inject IOptions<SiteOptions> SiteOptions
+@{
+    var site = SiteOptions.Value;
+    var meta = ViewData.Meta();
+    meta.Title = "SQL Server Backup Monitoring: Email, Slack & RPO Alerts";
+    meta.AppendSiteName = false;
+    meta.Description = "Monitor SQL Server backups: dashboard, history and reports, plus email, Slack, Teams and Discord webhook, Windows Event Log and missing-backup (RPO) alerts.";
+    meta.OgType = "article";
+    meta.Image = Screenshots.Get("reports").Src2x;
+    meta.ImageAlt = Screenshots.Get("reports").Alt;
+    meta.ImageWidth = 2290;
+    meta.ImageHeight = 1418;
+    meta.Breadcrumbs.Add(new("Home", "/"));
+    meta.Breadcrumbs.Add(new("Docs", "/docs"));
+    meta.Breadcrumbs.Add(new("Monitoring & alerts", "/docs/monitoring-and-alerts"));
+    meta.StructuredData.Add(StructuredData.TechArticle(site, "Monitoring SQL Server backups and sending alerts", meta.Description, "/docs/monitoring-and-alerts"));
+}
+
+<section class="page-hero">
+    <div class="container">
+        <partial name="_Breadcrumbs" />
+        <h1>Monitoring &amp; alerts</h1>
+        <p class="lead">Know that every database was backed up &mdash; and hear about it within minutes when one wasn't. Dashboard, history and reports in the app; email, webhook and Event Log alerts outside it.</p>
+    </div>
+</section>
+
+<div class="container docs">
+    <partial name="_DocsNav" />
+    <article class="prose">
+        <nav class="toc" aria-label="On this page">
+            <h2>On this page</h2>
+            <ol>
+                <li><a href="#dashboard">Dashboard</a></li>
+                <li><a href="#history">History</a></li>
+                <li><a href="#reports">Reports</a></li>
+                <li><a href="#email">Email alerts</a></li>
+                <li><a href="#webhook">Slack, Teams and Discord webhooks</a></li>
+                <li><a href="#event-log">Windows Event Log</a></li>
+                <li><a href="#rpo">Missing-backup (RPO) alerts</a></li>
+            </ol>
+        </nav>
+
+        <h2 id="dashboard">Dashboard</h2>
+        <p>The dashboard refreshes every few seconds and shows:</p>
+        <ul>
+            <li>the <strong>service state</strong> &mdash; running, stopped or not installed &mdash; with version, process id, uptime and the Windows account backups run as;</li>
+            <li>one row per job with its state (<em>Scheduled</em>, <em>Running&hellip;</em>, <em>Disabled</em>, <em>Schedule error</em>), next run, last run and last result, highlighted in red after a failure;</li>
+            <li>a red banner with every active <a href="#rpo">RPO alert</a>;</li>
+            <li>the reason when the control panel cannot reach the service, so you are never debugging blind.</li>
+        </ul>
+        <screenshot name="dashboard" caption="All jobs healthy, with their next and last runs." />
+
+        <h2 id="history">History</h2>
+        <p>Every database backup attempt is a row: start time, job, database, type actually taken, trigger, result, duration, size and file. Filter by job with the <strong>Job</strong> box and select a row for the full details: SQL Server's own message, <code>RESTORE VERIFYONLY</code> result, retention actions and the off-site upload.</p>
+        <p>The <strong>Trigger</strong> column shows why a run happened: <em>Scheduled</em>, <em>CatchUp</em> (a missed run after the service was down), <em>Manual</em> (Run now) or <em>ManualStandalone</em> (run inside the app while the service was stopped).</p>
+        <p>Failures carry the real SQL Server error. Permission errors also explain which Windows account was used and how to fix it &mdash; see <a href="/docs/troubleshooting">Troubleshooting</a>.</p>
+        <screenshot name="history" caption="History with the details of a verified, off-site-copied full backup." />
+
+        <h2 id="reports">Reports</h2>
+        <p>The <strong>Reports</strong> page summarises the last 30 days:</p>
+        <ul>
+            <li><strong>Success rate</strong> and the number of runs and failures (a failed off-site upload counts as a failure here);</li>
+            <li><strong>Current full-backup footprint</strong> &mdash; the size of the newest full backup of every database added together;</li>
+            <li><strong>Bytes written</strong> in the period;</li>
+            <li>per job and database: last full backup and its size, success rate, average and maximum duration, growth over 30 days and a 14-day size chart.</li>
+        </ul>
+        <screenshot name="reports" caption="Two failures in 964 runs show up as 97% on the affected databases." />
+
+        <h2 id="email">Email alerts</h2>
+        <p>In <strong>Settings &rarr; Email notifications</strong>:</p>
+        <ol>
+            <li>Tick <strong>Send email reports about backup runs</strong>.</li>
+            <li>Enter the <strong>SMTP server</strong> and <strong>Port</strong>. Tick <strong>TLS</strong> for STARTTLS (normally port 587); an internal relay often uses port 25 without TLS. Implicit TLS on port 465 is not supported.</li>
+            <li>Enter <strong>Username</strong> and <strong>Password</strong> if the server requires authentication (the password is DPAPI-encrypted), the <strong>From address</strong> and one or more <strong>To address(es)</strong> separated by <code>;</code> or <code>,</code>.</li>
+            <li>Keep <strong>Only alert when a backup fails</strong> ticked to avoid daily noise, or untick it to receive a report after every run.</li>
+            <li>Click <strong>Save settings</strong>, then <strong>Send test email</strong>.</li>
+        </ol>
+        <p>The email lists every database with its result, duration, file, size, notes and error.</p>
+        <screenshot name="settings-notifications" caption="Email, webhook and Event Log alert settings." />
+
+        <h2 id="webhook">Slack, Microsoft Teams and Discord webhooks</h2>
+        <p>Tick <strong>POST results to a webhook</strong>, paste the incoming-webhook URL from Slack, Teams (Workflows) or Discord, and click <strong>Send test</strong>. The JSON payload carries a human-readable <code>text</code> (Slack, Teams) and <code>content</code> (Discord), plus structured data for your own automation:</p>
+        <pre><code>{
+  "event": "backup-result",
+  "text": "✅ SqlBackup job 'Nightly full backup' on SQL01: OK (6 databases)",
+  "content": "✅ SqlBackup job 'Nightly full backup' on SQL01: OK (6 databases)",
+  "machine": "SQL01",
+  "timestampUtc": "2026-10-18T01:31:04+00:00",
+  "job": "Nightly full backup",
+  "success": true,
+  "entries": [
+    {
+      "database": "SalesDB",
+      "type": "Full",
+      "success": true,
+      "offsiteSuccess": true,
+      "file": "D:\\SqlBackups\\SalesDB\\SalesDB_Full_20261018_013000.bak",
+      "sizeBytes": 11165696,
+      "durationSeconds": 0.7,
+      "error": null
+    }
+  ],
+  "details": []
+}</code></pre>
+        <p><em>Only alert when a backup fails</em> applies to webhooks as well.</p>
+
+        <h2 id="event-log">Windows Event Log</h2>
+        <p>Tick <strong>Write results to the Windows Event Log</strong> to log every run to the Application log with source <code>SqlBackup</code> &mdash; ideal for SCOM, Zabbix, PRTG, Datadog or any tool that already watches the Event Log.</p>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th scope="col">Event ID</th><th scope="col">Meaning</th></tr></thead>
+                <tbody>
+                    <tr><td><code>1000</code></td><td>Backup job succeeded</td></tr>
+                    <tr><td><code>1001</code></td><td>Backup job failed (or an off-site copy failed)</td></tr>
+                    <tr><td><code>1002</code></td><td>RPO breach: no successful backup within the configured time</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h2 id="rpo">Missing-backup (RPO) alerts</h2>
+        <p>A schedule-based alert only fires when a job runs and fails. Many real backup outages are quieter: a job was disabled during maintenance and never re-enabled, a cron expression was mistyped, or the service was stopped. <strong>RPO alerts</strong> catch those.</p>
+        <p>In the job editor, under <strong>Monitoring</strong>, set <strong>Alert when there is no successful backup for</strong> <em>N</em> hours (0 turns it off). For a daily job, 26 hours gives a two-hour grace period; for a 30-minute log backup, 2 hours is typical.</p>
+        <ul>
+            <li>The service checks every 15 minutes &mdash; per database for explicit database lists, per job for the discovery modes.</li>
+            <li>A breach appears on the dashboard and is sent by email, webhook and Event Log &mdash; even when <em>Only alert when a backup fails</em> is ticked.</li>
+            <li>The alert repeats once a day until a successful backup resolves it.</li>
+        </ul>
+
+        <div class="docs-pager">
+            <a href="/docs/off-site-backups"><small>Previous</small>&larr; Off-site backups</a>
+            <a href="/docs/troubleshooting"><small>Next</small>Troubleshooting &rarr;</a>
+        </div>
+    </article>
+</div>

@@ -1,0 +1,25 @@
+@page "/error/{code:int?}"
+@model ErrorModel
+@{
+    var meta = ViewData.Meta();
+    meta.Title = Model.IsNotFound ? "Page not found" : "Something went wrong";
+    meta.Description = "The page could not be shown.";
+    meta.NoIndex = true;
+}
+
+<section class="not-found">
+    <div class="container">
+        @if (Model.IsNotFound)
+        {
+            <h1>Page not found</h1>
+            <p class="lead">The page you are looking for doesn't exist or has moved.</p>
+        }
+        else
+        {
+            <h1>Something went wrong</h1>
+            <p class="lead">Sorry, the page could not be shown (error @Model.Code). Please try again in a moment.</p>
+            <p class="muted">Request ID: <code>@Model.RequestId</code></p>
+        }
+        <p><a class="btn" href="/">Home</a> <a class="btn btn--ghost" href="/docs">Documentation</a> <a class="btn btn--ghost" href="/faq">FAQ</a></p>
+    </div>
+</section>
